@@ -41,3 +41,8 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 - **MCP Integration**: Dynamic tool calling via Model Context Protocol.
 - **Notion Sync**: Automatic cloud backup and sync using Notion.
 - **Pricing & Credits**: At-cost credit system and feature unlocks.
+- **Progressive Web App (PWA)**: Service worker for caching and web app manifest for installability (disabled in GitHub Codespaces due to CORS restrictions).
+
+## Known Issues
+
+- **GitHub Codespaces**: PWA features (service worker and manifest.json) are automatically disabled when running on `github.dev` domains to prevent CORS errors caused by authentication redirects. The app remains fully functional without these features in Codespaces.

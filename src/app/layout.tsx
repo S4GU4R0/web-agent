@@ -8,7 +8,6 @@ import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
 export const metadata: Metadata = {
   title: "Web Agent",
   description: "Your offline-first AI assistant",
-  manifest: "/manifest.json",
 };
 
 export default function RootLayout({

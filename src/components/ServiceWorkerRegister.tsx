@@ -4,6 +4,11 @@ import { useEffect } from 'react';
 
 export function ServiceWorkerRegister() {
   useEffect(() => {
+    // Skip SW registration in Codespaces to avoid CORS issues
+    if (window.location.hostname.includes('github.dev')) {
+      return;
+    }
+
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('/sw.js').then(
