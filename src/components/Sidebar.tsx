@@ -25,9 +25,10 @@ export function Sidebar() {
   const { chats, createChat } = useChats();
   const { sync, syncing, lastSyncAt } = useNotionSync();
   const { balance } = useCredits();
-  const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
+  const [isOnline, setIsOnline] = useState(true);
 
   React.useEffect(() => {
+    setIsOnline(navigator.onLine);
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
     window.addEventListener('online', handleOnline);
