@@ -1,4 +1,5 @@
 import { OpenAI } from 'openai';
+import puter from '@heyputer/puter.js';
 
 export interface ModelMessage {
   role: 'user' | 'assistant' | 'system' | 'tool';
@@ -130,18 +131,11 @@ export class PuterProvider implements ModelProvider {
   name = 'Puter.js';
 
   async generateCompletion(messages: ModelMessage[], options?: CompletionOptions): Promise<ModelMessage> {
-    // @ts-ignore
-    if (typeof puter === 'undefined') {
-      throw new Error('Puter.js not loaded');
-    }
-
-    // @ts-ignore
-    const response = await puter.ai.chat(messages.filter(m => m.role !== 'tool'), { stream: !!options?.stream });
+    const response = await puter.ai.chat(messages.filter(m => m.role !== 'tool') as any, { stream: !!options?.stream });
 
     if (options?.stream) {
       let fullContent = '';
-      // @ts-ignore
-      for await (const part of response) {
+      for await (const part of response as any) {
         const text = part.text;
         fullContent += text;
         if (options.onToken) {
@@ -150,7 +144,6 @@ export class PuterProvider implements ModelProvider {
       }
       return { role: 'assistant', content: fullContent };
     } else {
-      // @ts-ignore
       return { role: 'assistant', content: response.toString() };
     }
   }
