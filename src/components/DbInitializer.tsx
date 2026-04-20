@@ -1,11 +1,19 @@
 'use client';
 
 import { useEffect } from 'react';
-import { initDb } from '@/lib/db';
+import { db } from '@/lib/db';
 
 export function DbInitializer() {
   useEffect(() => {
-    initDb().catch(console.error);
+    const init = async () => {
+      try {
+        await db.open();
+        console.log('Database initialized');
+      } catch (err) {
+        console.error('Failed to init DB:', err);
+      }
+    };
+    init();
   }, []);
 
   return null;

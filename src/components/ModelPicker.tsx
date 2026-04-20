@@ -1,57 +1,65 @@
-"use client";
+'use client';
 
-import React, { useState } from "react";
-import { ChevronDown, Check } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { useStore } from "@/lib/store";
+import React, { useState } from 'react';
+import { ChevronDown, Check, Sparkles } from 'lucide-react';
+import { useStore } from '@/lib/store';
+import { cn } from '@/lib/utils';
 
-import { useLiveQuery } from "dexie-react-hooks";
-import { db } from "@/lib/db";
+const MODELS = [
+  { id: 'gpt-4o', name: 'GPT-4o', provider: 'OpenAI', description: 'Most capable model' },
+  { id: 'gpt-4o-mini', name: 'GPT-4o mini', provider: 'OpenAI', description: 'Fast and efficient' },
+  { id: 'puter', name: 'Puter AI', provider: 'Puter.js', description: 'No API key needed' },
+];
 
-export const ModelPicker = () => {
-  const [isOpen, setIsOpen] = useState(false);
+export function ModelPicker() {
+  const [open, setOpen] = useState(false);
   const { selectedModelId, setSelectedModelId } = useStore();
-  
-  const models = useLiveQuery(() => db.models.toArray()) || [];
-  const selectedModel = models.find(m => m.id === selectedModelId) || models[0] || { id: 'puter', name: 'Puter AI', provider: 'puter' };
+
+  const selectedModel = MODELS.find(m => m.id === selectedModelId) || MODELS[0];
 
   return (
     <div className="relative">
-      <button 
-        onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 rounded-lg text-sm transition-colors border border-zinc-700/50 text-zinc-200"
+      <button
+        onClick={() => setOpen(!open)}
+        className="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-zinc-800 text-zinc-300 transition-colors text-sm font-medium"
       >
+        <Sparkles size={16} className="text-emerald-500" />
         <span>{selectedModel.name}</span>
-        <ChevronDown size={14} className={cn("transition-transform", isOpen && "rotate-180")} />
+        <ChevronDown size={14} className={cn("transition-transform", open && "rotate-180")} />
       </button>
 
-      {isOpen && (
+      {open && (
         <>
           <div 
-            className="fixed inset-0 z-30" 
-            onClick={() => setIsOpen(false)}
+            className="fixed inset-0 z-20" 
+            onClick={() => setOpen(false)} 
           />
-          <div className="absolute bottom-full left-0 mb-2 w-64 bg-zinc-900 border border-zinc-800 rounded-xl shadow-2xl z-40 py-1 overflow-hidden">
-            <div className="px-3 py-2 text-[10px] font-bold text-zinc-500 uppercase tracking-wider">
+          <div className="absolute top-full left-0 mt-2 w-64 bg-zinc-900 border border-zinc-800 rounded-xl shadow-2xl z-30 p-1">
+            <div className="px-3 py-2 text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
               Select Model
             </div>
-            {models.map((model) => (
+            {MODELS.map((model) => (
               <button
                 key={model.id}
                 onClick={() => {
                   setSelectedModelId(model.id);
-                  setIsOpen(false);
+                  setOpen(false);
                 }}
                 className={cn(
-                  "w-full flex items-center justify-between px-3 py-2 text-sm hover:bg-zinc-800 transition-colors",
-                  selectedModelId === model.id ? "text-white" : "text-zinc-400"
+                  "w-full flex flex-col items-start p-3 rounded-lg transition-colors text-left group",
+                  selectedModelId === model.id ? "bg-emerald-500/10" : "hover:bg-zinc-800"
                 )}
               >
-                <div className="flex flex-col items-start text-left">
-                  <span>{model.name}</span>
-                  <span className="text-[10px] text-zinc-600">{model.provider}</span>
+                <div className="flex items-center justify-between w-full">
+                  <span className={cn(
+                    "text-sm font-medium",
+                    selectedModelId === model.id ? "text-emerald-500" : "text-zinc-200"
+                  )}>
+                    {model.name}
+                  </span>
+                  {selectedModelId === model.id && <Check size={14} className="text-emerald-500" />}
                 </div>
-                {selectedModelId === model.id && <Check size={14} className="text-emerald-500" />}
+                <span className="text-[10px] text-zinc-500 mt-0.5">{model.description}</span>
               </button>
             ))}
           </div>
@@ -59,4 +67,4 @@ export const ModelPicker = () => {
       )}
     </div>
   );
-};
+}

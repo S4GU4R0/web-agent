@@ -1,15 +1,13 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
 import "./globals.css";
+import { Sidebar } from "@/components/Sidebar";
 import { DbInitializer } from "@/components/DbInitializer";
+import { PWAProvider } from "@/components/PWAProvider";
 import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
-import Script from "next/script";
-
-const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "Web Agent",
-  description: "Next-generation AI agent platform",
+  description: "Your offline-first AI assistant",
   manifest: "/manifest.json",
 };
 
@@ -19,14 +17,21 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="h-full dark">
+    <html lang="en" className="dark">
       <head>
-        <Script src="https://js.puter.com/v2/" strategy="beforeInteractive" />
+        <script src="https://js.puter.com/v2/"></script>
       </head>
-      <body className={`${inter.className} h-full bg-black text-white antialiased`}>
-        <DbInitializer />
-        <ServiceWorkerRegister />
-        {children}
+      <body className="antialiased bg-black text-white overflow-hidden">
+        <PWAProvider>
+          <ServiceWorkerRegister />
+          <DbInitializer />
+          <div className="flex h-screen w-full">
+            <Sidebar />
+            <main className="flex-1 relative overflow-hidden">
+              {children}
+            </main>
+          </div>
+        </PWAProvider>
       </body>
     </html>
   );

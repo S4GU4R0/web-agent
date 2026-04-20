@@ -16,7 +16,7 @@ test.describe('Web-Agent User Journey', () => {
             { choices: [{ delta: { content: '' }, index: 0, finish_reason: 'stop' }], usage: { prompt_tokens: 10, completion_tokens: 10, total_tokens: 20 } }
           ];
           
-          let body = chunks.map(c => `data: ${JSON.stringify(c)}\\n\\n`).join('') + 'data: [DONE]\\n\\n';
+          let body = chunks.map(c => `data: ${JSON.stringify(c)}\n\n`).join('') + 'data: [DONE]\n\n';
           
           await route.fulfill({
             status: 200,
