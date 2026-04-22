@@ -1,7 +1,6 @@
 'use client';
-
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, User, Bot, Mic, MicOff } from 'lucide-react';
+import { Send, User, Bot, Mic, MicOff, AlertCircle } from 'lucide-react';
 import { useMessages, useVoice } from '@/lib/hooks';
 import { ModelPicker } from './ModelPicker';
 import { cn } from '@/lib/utils';
@@ -67,15 +66,18 @@ export function ChatInterface({ chatId }: ChatInterfaceProps) {
             >
               <div className={cn(
                 "w-8 h-8 rounded flex items-center justify-center shrink-0",
-                msg.role === 'user' ? "bg-emerald-600 text-white" : "bg-zinc-800 text-emerald-500"
+                msg.role === 'user' ? "bg-emerald-600 text-white" : (msg.is_error ? "bg-red-950 text-red-500" : "bg-zinc-800 text-emerald-500")
               )}>
-                {msg.role === 'user' ? <User size={18} /> : <Bot size={18} />}
+                {msg.role === 'user' ? <User size={18} /> : (msg.is_error ? <AlertCircle size={18} /> : <Bot size={18} />)}
               </div>
               <div className={cn(
                 "flex-1 p-4 rounded-2xl text-sm leading-relaxed",
                 msg.role === 'user' 
                   ? "bg-zinc-900 text-zinc-200 rounded-tr-none" 
-                  : "bg-zinc-950 border border-zinc-800 text-zinc-300 rounded-tl-none"
+                  : cn(
+                      "bg-zinc-950 border border-zinc-800 text-zinc-300 rounded-tl-none",
+                      msg.is_error && "border-red-900/50 bg-red-950/20 text-red-200"
+                    )
               )}>
                 <div className="whitespace-pre-wrap">{msg.content}</div>
                 {msg.tokens_used && (

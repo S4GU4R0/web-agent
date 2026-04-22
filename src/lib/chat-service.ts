@@ -13,13 +13,14 @@ export class ChatService {
     }
   }
 
-  async createChat(title: string, modelId: string, systemPrompt?: string): Promise<string> {
+  async createChat(title: string, modelId?: string, systemPrompt?: string): Promise<string> {
+    const defaultModel = await db.settings.get('default_model');
     const id = uuidv4();
     const now = Date.now();
     await db.chats.add({
       id,
       title,
-      model_id: modelId,
+      model_id: modelId || defaultModel?.value || 'puter',
       system_prompt: systemPrompt,
       created_at: now,
       updated_at: now,
@@ -56,12 +57,14 @@ export class ChatService {
     await db.chats.update(chatId, { updated_at: Date.now() });
 
     const history = await this.getMessages(chatId);
-    let modelMessages: ModelMessage[] = history.map(m => ({
-      role: m.role,
-      content: m.content,
-      tool_calls: m.tool_calls,
-      tool_call_id: m.tool_call_id
-    }));
+    let modelMessages: ModelMessage[] = history
+      .filter(m => !m.is_error)
+      .map(m => ({
+        role: m.role,
+        content: m.content,
+        tool_calls: m.tool_calls,
+        tool_call_id: m.tool_call_id
+      }));
 
     if (chat.system_prompt) {
       modelMessages.unshift({ role: 'system', content: chat.system_prompt });
@@ -152,7 +155,8 @@ export class ChatService {
         } catch (error) {
           console.error('Failed to get completion:', error);
           await db.messages.update(assistantMessageId, { 
-            content: `Error: ${error instanceof Error ? error.message : String(error)}` 
+            content: `Error: ${error instanceof Error ? error.message : String(error)}`,
+            is_error: true
           });
           break;
         }

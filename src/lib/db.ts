@@ -18,6 +18,7 @@ export interface Message {
   tokens_used?: number;
   tool_calls?: any[];
   tool_call_id?: string;
+  is_error?: boolean;
 }
 
 export interface MCP {
@@ -57,4 +58,5 @@ db.on('populate', async () => {
   await db.settings.add({ key: 'theme', value: 'dark' });
   await db.settings.add({ key: 'credit_balance', value: 10.0 });
   await db.settings.add({ key: 'notion_auto_sync', value: false });
+  await db.settings.add({ key: 'default_model', value: 'puter' });
 });
