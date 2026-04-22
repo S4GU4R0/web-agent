@@ -26,7 +26,18 @@ export interface MCP {
   name: string;
   type: 'http' | 'oauth';
   endpoint: string;
-  config?: any;
+  config?: {
+    apiKey?: string;
+    clientId?: string;
+    clientSecret?: string;
+    authUrl?: string;
+    tokenUrl?: string;
+    redirectUri?: string;
+    accessToken?: string;
+    refreshToken?: string;
+    expiresAt?: number;
+    [key: string]: any;
+  };
 }
 
 export interface Setting {

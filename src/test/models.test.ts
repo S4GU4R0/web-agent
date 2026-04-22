@@ -1,7 +1,16 @@
-import { describe, it, expect, vi } from 'vitest';
-import { OpenAIProvider } from '../lib/models';
+import { describe, it, expect, vi, beforeAll } from 'vitest';
+import { OpenAIProvider, PuterProvider } from '../lib/models';
 import { http, HttpResponse } from 'msw';
 import { server } from './setup';
+import puter from '@heyputer/puter.js';
+
+vi.mock('@heyputer/puter.js', () => ({
+  default: {
+    ai: {
+      chat: vi.fn(),
+    },
+  },
+}));
 
 describe('OpenAIProvider', () => {
   it('should generate a completion', async () => {
@@ -57,19 +66,15 @@ describe('OpenAIProvider', () => {
   });
 
   it('should handle PuterProvider', async () => {
-    const mockPuter = {
-      ai: {
-        chat: vi.fn().mockResolvedValue('Puter response'),
-      },
-    };
-    // @ts-ignore
-    global.puter = mockPuter;
+    vi.mocked(puter.ai.chat).mockResolvedValue('Puter response' as any);
 
-    const { PuterProvider } = await import('../lib/models');
     const provider = new PuterProvider();
     const result = await provider.generateCompletion([{ role: 'user', content: 'Hi' }]);
 
     expect(result.content).toBe('Puter response');
-    expect(mockPuter.ai.chat).toHaveBeenCalledWith([{ role: 'user', content: 'Hi' }], { stream: false });
+    expect(puter.ai.chat).toHaveBeenCalledWith([{ role: 'user', content: 'Hi' }], { 
+        model: undefined,
+        stream: false 
+    });
   });
 });

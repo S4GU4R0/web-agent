@@ -71,7 +71,9 @@ export class ChatService {
     }
 
     let provider;
-    if (chat.model_id === 'puter') {
+    const modelId = chat.model_id;
+    
+    if (modelId === 'puter' || modelId.startsWith('puter/')) {
         provider = getProvider('puter', {});
     } else {
         const settings = await db.settings.get('openai_api_key');
@@ -96,6 +98,7 @@ export class ChatService {
 
         try {
           const response = await provider.generateCompletion(modelMessages, {
+            model: modelId,
             stream: true,
             tools: allTools,
             onToken: async (token) => {

@@ -17,9 +17,12 @@ export interface ModelTool {
   name: string;
   description: string;
   parameters: any;
+  mcpId: string;
+  originalName: string;
 }
 
 export interface CompletionOptions {
+  model?: string;
   stream?: boolean;
   onToken?: (token: string) => void;
   tools?: ModelTool[];
@@ -44,8 +47,8 @@ export class OpenAIProvider implements ModelProvider {
     });
   }
 
-  async generateCompletion(messages: ModelMessage[], options?: CompletionOptions): Promise<ModelMessage> {
-    const openaiTools = options?.tools?.map(t => ({
+  async generateCompletion(messages: ModelMessage[], options: CompletionOptions = {}): Promise<ModelMessage> {
+    const openaiTools = options.tools?.map(t => ({
       type: 'function' as const,
       function: {
         name: t.name,
@@ -54,9 +57,11 @@ export class OpenAIProvider implements ModelProvider {
       }
     }));
 
-    if (options?.stream) {
+    const modelId = options.model || 'gpt-4o';
+
+    if (options.stream) {
       const stream = await this.client.chat.completions.create({
-        model: 'gpt-4o',
+        model: modelId,
         messages: messages as any,
         stream: true,
         tools: openaiTools,
@@ -83,6 +88,7 @@ export class OpenAIProvider implements ModelProvider {
               toolCalls[tc.index] = { ...tc, function: { ...tc.function } };
             } else {
               if (tc.function?.arguments) {
+                if (!toolCalls[tc.index].function.arguments) toolCalls[tc.index].function.arguments = '';
                 toolCalls[tc.index].function.arguments += tc.function.arguments;
               }
             }
@@ -110,7 +116,7 @@ export class OpenAIProvider implements ModelProvider {
       return { role: 'assistant', content: fullContent, usage };
     } else {
       const response = await this.client.chat.completions.create({
-        model: 'gpt-4o',
+        model: modelId,
         messages: messages as any,
         tools: openaiTools,
       });
@@ -130,10 +136,13 @@ export class PuterProvider implements ModelProvider {
   id = 'puter';
   name = 'Puter.js';
 
-  async generateCompletion(messages: ModelMessage[], options?: CompletionOptions): Promise<ModelMessage> {
-    const response = await puter.ai.chat(messages.filter(m => m.role !== 'tool') as any, { stream: !!options?.stream });
+  async generateCompletion(messages: ModelMessage[], options: CompletionOptions = {}): Promise<ModelMessage> {
+    const response = await puter.ai.chat(messages.filter(m => m.role !== 'tool') as any, { 
+        model: options.model,
+        stream: !!options.stream 
+    });
 
-    if (options?.stream) {
+    if (options.stream) {
       let fullContent = '';
       for await (const part of response as any) {
         const text = part.text;
@@ -156,6 +165,10 @@ export const getProvider = (providerId: string, config: any): ModelProvider => {
     case 'puter':
       return new PuterProvider();
     default:
+      // Default to OpenAI-compatible for unknown providers if baseURL is provided
+      if (config.baseURL) {
+        return new OpenAIProvider(config.apiKey, config.baseURL);
+      }
       throw new Error(`Unknown provider: ${providerId}`);
   }
 };

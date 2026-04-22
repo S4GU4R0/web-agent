@@ -24,7 +24,7 @@ import { cn } from '@/lib/utils';
 export function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const { currentChatId, setCurrentChatId } = useStore();
+  const { currentChatId, setCurrentChatId, setSelectedModelId, selectedModelId } = useStore();
   const { chats, createChat } = useChats();
   const { sync, syncing, lastSyncAt } = useNotionSync();
   const { balance } = useCredits();
@@ -43,7 +43,7 @@ export function Sidebar() {
   }, []);
 
   const handleCreateChat = async () => {
-    const id = await createChat('New Chat', 'gpt-4o');
+    const id = await createChat('New Chat', selectedModelId);
     setCurrentChatId(id);
   };
 
@@ -81,7 +81,10 @@ export function Sidebar() {
         {chats.map((chat) => (
           <button
             key={chat.id}
-            onClick={() => setCurrentChatId(chat.id)}
+            onClick={() => {
+              setCurrentChatId(chat.id);
+              setSelectedModelId(chat.model_id || 'gpt-4o');
+            }}
             className={cn(
               "w-full flex items-center gap-3 p-3 rounded-lg transition-colors group",
               currentChatId === chat.id 

@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { ChevronDown, Check, Sparkles } from 'lucide-react';
 import { useStore } from '@/lib/store';
+import { db } from '@/lib/db';
 import { cn } from '@/lib/utils';
 
 const MODELS = [
@@ -13,9 +14,17 @@ const MODELS = [
 
 export function ModelPicker() {
   const [open, setOpen] = useState(false);
-  const { selectedModelId, setSelectedModelId } = useStore();
+  const { selectedModelId, setSelectedModelId, currentChatId } = useStore();
 
   const selectedModel = MODELS.find(m => m.id === selectedModelId) || MODELS[0];
+
+  const handleModelSelect = async (modelId: string) => {
+    setSelectedModelId(modelId);
+    if (currentChatId) {
+      await db.chats.update(currentChatId, { model_id: modelId });
+    }
+    setOpen(false);
+  };
 
   return (
     <div className="relative">
@@ -41,13 +50,10 @@ export function ModelPicker() {
             {MODELS.map((model) => (
               <button
                 key={model.id}
-                onClick={() => {
-                  setSelectedModelId(model.id);
-                  setOpen(false);
-                }}
+                onClick={() => handleModelSelect(model.id)}
                 className={cn(
                   "w-full flex flex-col items-start p-3 rounded-lg transition-colors text-left group",
-                  selectedModelId === model.id ? "bg-emerald-5 dark:bg-emerald-500/10" : "hover:bg-zinc-50 dark:hover:bg-zinc-800"
+                  selectedModelId === model.id ? "bg-emerald-50 dark:bg-emerald-500/10" : "hover:bg-zinc-50 dark:hover:bg-zinc-800"
                 )}
               >
                 <div className="flex items-center justify-between w-full">
