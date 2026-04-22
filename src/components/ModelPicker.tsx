@@ -21,11 +21,11 @@ export function ModelPicker() {
     <div className="relative">
       <button
         onClick={() => setOpen(!open)}
-        className="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-zinc-800 text-zinc-300 transition-colors text-sm font-medium"
+        className="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 transition-colors text-sm font-medium border border-transparent hover:border-zinc-200 dark:hover:border-zinc-700"
       >
-        <Sparkles size={16} className="text-emerald-500" />
+        <Sparkles size={16} className="text-emerald-600 dark:text-emerald-500" />
         <span>{selectedModel.name}</span>
-        <ChevronDown size={14} className={cn("transition-transform", open && "rotate-180")} />
+        <ChevronDown size={14} className={cn("transition-transform opacity-50", open && "rotate-180")} />
       </button>
 
       {open && (
@@ -34,8 +34,8 @@ export function ModelPicker() {
             className="fixed inset-0 z-20" 
             onClick={() => setOpen(false)} 
           />
-          <div className="absolute top-full left-0 mt-2 w-64 bg-zinc-900 border border-zinc-800 rounded-xl shadow-2xl z-30 p-1">
-            <div className="px-3 py-2 text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
+          <div className="absolute top-full left-0 mt-2 w-64 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-2xl z-30 p-1">
+            <div className="px-3 py-2 text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest">
               Select Model
             </div>
             {MODELS.map((model) => (
@@ -47,19 +47,19 @@ export function ModelPicker() {
                 }}
                 className={cn(
                   "w-full flex flex-col items-start p-3 rounded-lg transition-colors text-left group",
-                  selectedModelId === model.id ? "bg-emerald-500/10" : "hover:bg-zinc-800"
+                  selectedModelId === model.id ? "bg-emerald-5 dark:bg-emerald-500/10" : "hover:bg-zinc-50 dark:hover:bg-zinc-800"
                 )}
               >
                 <div className="flex items-center justify-between w-full">
                   <span className={cn(
                     "text-sm font-medium",
-                    selectedModelId === model.id ? "text-emerald-500" : "text-zinc-200"
+                    selectedModelId === model.id ? "text-emerald-600 dark:text-emerald-500" : "text-zinc-900 dark:text-zinc-200"
                   )}>
                     {model.name}
                   </span>
-                  {selectedModelId === model.id && <Check size={14} className="text-emerald-500" />}
+                  {selectedModelId === model.id && <Check size={14} className="text-emerald-600 dark:text-emerald-500" />}
                 </div>
-                <span className="text-[10px] text-zinc-500 mt-0.5">{model.description}</span>
+                <span className="text-[10px] text-zinc-500 dark:text-zinc-500 mt-0.5">{model.description}</span>
               </button>
             ))}
           </div>

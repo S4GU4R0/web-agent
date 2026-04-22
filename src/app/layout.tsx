@@ -16,8 +16,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark">
-      <body className="antialiased bg-black text-white overflow-hidden">
+    <html lang="en">
+      <body className="antialiased bg-background text-foreground overflow-hidden">
         <PWAProvider>
           <ServiceWorkerRegister />
           <DbInitializer />
