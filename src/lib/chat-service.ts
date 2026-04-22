@@ -71,13 +71,23 @@ export class ChatService {
     }
 
     let provider;
-    const modelId = chat.model_id;
+    let actualModelId = chat.model_id;
     
-    if (modelId === 'puter' || modelId.startsWith('puter/')) {
+    if (actualModelId === 'puter' || actualModelId.startsWith('puter/')) {
         provider = getProvider('puter', {});
     } else {
-        const settings = await db.settings.get('openai_api_key');
-        provider = getProvider('openai', { apiKey: settings?.value || '' });
+        // Check if it's a custom model
+        const customModel = await db.customModels.get(actualModelId);
+        if (customModel) {
+            provider = getProvider('openai', { 
+                apiKey: customModel.api_key, 
+                baseURL: customModel.base_url 
+            });
+            actualModelId = customModel.model_id;
+        } else {
+            const settings = await db.settings.get('openai_api_key');
+            provider = getProvider('openai', { apiKey: settings?.value || '' });
+        }
     }
 
     const allTools = await mcpService.getAllTools();
@@ -98,7 +108,7 @@ export class ChatService {
 
         try {
           const response = await provider.generateCompletion(modelMessages, {
-            model: modelId,
+            model: actualModelId,
             stream: true,
             tools: allTools,
             onToken: async (token) => {

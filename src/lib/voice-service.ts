@@ -4,8 +4,9 @@ export class VoiceService {
   private processor: ScriptProcessorNode | null = null;
   private stream: MediaStream | null = null;
 
-  async start(apiKey: string, model: string = 'gpt-4o-realtime-preview-2024-10-01') {
-    this.socket = new WebSocket(`wss://api.openai.com/v1/realtime?model=${model}`);
+  async start(apiKey: string, model: string = 'gpt-4o-realtime-preview-2024-10-01', baseUrl: string = 'wss://api.openai.com/v1/realtime') {
+    const url = `${baseUrl}?model=${model}`;
+    this.socket = new WebSocket(url);
     
     this.socket.onopen = () => {
       console.log('Realtime socket connected');

@@ -8,6 +8,12 @@ export interface CreditTransaction {
   timestamp: number;
 }
 
+export const FEATURE_COSTS: Record<string, number> = {
+  'realtime_voice': 1000, // 1000 credits = $10.00
+  'cloud_sync': 500,     // 500 credits = $5.00
+  'encryption': 500,     // 500 credits = $5.00
+};
+
 export class CreditService {
   async getBalance(): Promise<number> {
     const balance = await db.settings.get('credit_balance');
@@ -15,16 +21,14 @@ export class CreditService {
   }
 
   async addCredits(amount: number, description: string = 'Top-up') {
+    // amount is in credits
     const currentBalance = await this.getBalance();
     const newBalance = currentBalance + amount;
     await db.settings.put({ key: 'credit_balance', value: newBalance });
-    
-    // Track transaction (we might need a new table for this, or just use settings with a list)
-    // For now, let's keep it simple and just update balance.
-    // In a real app, we'd have a 'transactions' table.
   }
 
   async deductCredits(amount: number, description: string) {
+    // amount is in credits
     const currentBalance = await this.getBalance();
     const newBalance = Math.max(0, currentBalance - amount);
     await db.settings.put({ key: 'credit_balance', value: newBalance });
@@ -36,14 +40,26 @@ export class CreditService {
   }
 
   async unlockFeature(featureKey: string) {
+    const isUnlocked = await this.hasFeature(featureKey);
+    if (isUnlocked) return;
+
+    const cost = FEATURE_COSTS[featureKey];
+    if (cost === undefined) throw new Error(`Unknown feature: ${featureKey}`);
+
+    const currentBalance = await this.getBalance();
+    if (currentBalance < cost) {
+      throw new Error(`Insufficient credits to unlock ${featureKey}. Cost: ${cost} credits.`);
+    }
+
+    await this.deductCredits(cost, `Unlock feature: ${featureKey}`);
     await db.settings.put({ key: `feature_${featureKey}`, value: true });
   }
 
   calculateCost(tokens: number, modelId: string): number {
-    // Simplified cost calculation
+    // Returns cost in credits
     // e.g., $0.01 per 1000 tokens = 1 credit per 1000 tokens
     const rate = 0.001; // credits per token
-    return tokens * rate;
+    return Math.ceil(tokens * rate);
   }
 }
 

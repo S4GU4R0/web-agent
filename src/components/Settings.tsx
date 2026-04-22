@@ -4,17 +4,19 @@ import React, { useState, useEffect } from 'react';
 import { 
   X, 
   Key, 
-  Settings as SettingsIcon, 
   Cpu, 
   Cloud,
   Mic,
   CreditCard,
   Lock,
-  ExternalLink
+  ExternalLink,
+  Trash2,
+  Plus,
+  Save
 } from 'lucide-react';
 import { db } from '@/lib/db';
 import { cn } from '@/lib/utils';
-import { useCredits } from '@/lib/hooks';
+import { useCredits, useCustomModels, useMCPs } from '@/lib/hooks';
 
 interface SettingsProps {
   open: boolean;
@@ -29,7 +31,87 @@ export function Settings({ open, onClose }: SettingsProps) {
   const [notionToken, setNotionToken] = useState('');
   const [notionChatsDb, setNotionChatsDb] = useState('');
   const [notionMsgsDb, setNotionMsgsDb] = useState('');
-  const { balance, addCredits, hasFeature } = useCredits();
+  const { balance, hasFeature } = useCredits();
+
+  const { models: customModels, addModel, removeModel } = useCustomModels();
+  const [showAddModelForm, setShowAddModelForm] = useState(false);
+  const [newModelName, setNewModelName] = useState('');
+  const [newModelId, setNewModelId] = useState('');
+  const [newModelBaseUrl, setNewModelBaseUrl] = useState('');
+  const [newModelApiKey, setNewModelApiKey] = useState('');
+
+  const handleAddModel = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newModelName || !newModelId || !newModelBaseUrl) return;
+
+    await addModel({
+      name: newModelName,
+      provider: 'openai-compatible',
+      model_id: newModelId,
+      base_url: newModelBaseUrl,
+      api_key: newModelApiKey
+    });
+
+    setNewModelName('');
+    setNewModelId('');
+    setNewModelBaseUrl('');
+    setNewModelApiKey('');
+    setShowAddModelForm(false);
+  };
+
+  const handleDeleteModel = async (id: string) => {
+    await removeModel(id);
+  };
+
+  const { mcps, registerMCP } = useMCPs();
+  const [showAddMcpForm, setShowAddMcpForm] = useState(false);
+  const [mcpName, setMcpName] = useState('');
+  const [mcpType, setMcpType] = useState<'http' | 'oauth'>('http');
+  const [mcpEndpoint, setMcpEndpoint] = useState('');
+  const [mcpApiKey, setMcpApiKey] = useState('');
+  const [mcpClientId, setMcpClientId] = useState('');
+  const [mcpClientSecret, setMcpClientSecret] = useState('');
+  const [mcpAuthUrl, setMcpAuthUrl] = useState('');
+  const [mcpTokenUrl, setMcpTokenUrl] = useState('');
+
+  const handleAddMcp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!mcpName || !mcpEndpoint) return;
+
+    const config: Record<string, string> = {};
+    if (mcpType === 'http' && mcpApiKey) config.apiKey = mcpApiKey;
+    if (mcpType === 'oauth') {
+      config.clientId = mcpClientId;
+      config.clientSecret = mcpClientSecret;
+      config.authUrl = mcpAuthUrl;
+      config.tokenUrl = mcpTokenUrl;
+      config.redirectUri = window.location.origin + '/oauth/callback';
+    }
+
+    const mcpId = await registerMCP(mcpName, mcpType, mcpEndpoint, config);
+
+    if (mcpType === 'oauth' && mcpAuthUrl) {
+      const authUrl = new URL(mcpAuthUrl);
+      authUrl.searchParams.append('client_id', mcpClientId);
+      authUrl.searchParams.append('redirect_uri', config.redirectUri);
+      authUrl.searchParams.append('response_type', 'code');
+      authUrl.searchParams.append('state', mcpId);
+      window.location.href = authUrl.toString();
+    } else {
+      setMcpName('');
+      setMcpEndpoint('');
+      setMcpApiKey('');
+      setMcpClientId('');
+      setMcpClientSecret('');
+      setMcpAuthUrl('');
+      setMcpTokenUrl('');
+      setShowAddMcpForm(false);
+    }
+  };
+
+  const handleDeleteMcp = async (id: string) => {
+    await db.mcps.delete(id);
+  };
 
   useEffect(() => {
     if (open) {
@@ -166,18 +248,97 @@ export function Settings({ open, onClose }: SettingsProps) {
                       <Cpu size={24} />
                     </div>
                     <div>
-                      <div className="text-sm font-medium">Installed Models</div>
-                      <div className="text-xs text-zinc-500">3 models available</div>
+                      <div className="text-sm font-medium">Model Configuration</div>
+                      <div className="text-xs text-zinc-500">{(customModels?.length || 0) + 3} models available</div>
                     </div>
                   </div>
-                  <button className="text-xs font-semibold text-emerald-500 hover:text-emerald-400">Add New</button>
+                  <button 
+                    onClick={() => setShowAddModelForm(!showAddModelForm)}
+                    className="text-xs font-semibold text-emerald-500 hover:text-emerald-400 flex items-center gap-1"
+                  >
+                    {showAddModelForm ? 'Cancel' : <><Plus size={14} /> Add Custom Model</>}
+                  </button>
                 </div>
 
-                <div className="space-y-3">
-                  <ModelItem name="GPT-4o" provider="OpenAI" status="active" />
-                  <ModelItem name="GPT-4o mini" provider="OpenAI" status="active" />
-                  <ModelItem name="Puter AI" provider="Puter.js" status="ready" />
+                {showAddModelForm && (
+                  <form onSubmit={handleAddModel} className="p-4 bg-zinc-950 border border-emerald-500/30 rounded-xl space-y-4 animate-in fade-in slide-in-from-top-2 duration-200">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold text-zinc-500 uppercase px-1">Friendly Name</label>
+                        <input 
+                          value={newModelName}
+                          onChange={(e) => setNewModelName(e.target.value)}
+                          placeholder="e.g. My Llama 3"
+                          className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                          required
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold text-zinc-500 uppercase px-1">Model ID</label>
+                        <input 
+                          value={newModelId}
+                          onChange={(e) => setNewModelId(e.target.value)}
+                          placeholder="e.g. llama-3-70b"
+                          className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                          required
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-bold text-zinc-500 uppercase px-1">Base URL</label>
+                      <input 
+                        value={newModelBaseUrl}
+                        onChange={(e) => setNewModelBaseUrl(e.target.value)}
+                        placeholder="https://api.together.xyz/v1"
+                        className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-bold text-zinc-500 uppercase px-1">API Key (Optional)</label>
+                      <input 
+                        type="password"
+                        value={newModelApiKey}
+                        onChange={(e) => setNewModelApiKey(e.target.value)}
+                        placeholder="sk-..."
+                        className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                      />
+                    </div>
+                    <button 
+                      type="submit"
+                      className="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
+                    >
+                      <Save size={16} />
+                      Save Model
+                    </button>
+                  </form>
+                )}
+
+                <div className="space-y-4">
+                  <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-widest px-1">Built-in Models</h3>
+                  <div className="space-y-3">
+                    <ModelItem name="GPT-4o" provider="OpenAI" status="active" />
+                    <ModelItem name="GPT-4o mini" provider="OpenAI" status="active" />
+                    <ModelItem name="Puter AI" provider="Puter.js" status="ready" />
+                  </div>
                 </div>
+
+                {customModels && customModels.length > 0 && (
+                  <div className="space-y-4">
+                    <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-widest px-1">Custom Models</h3>
+                    <div className="space-y-3">
+                      {customModels.map(model => (
+                        <ModelItem 
+                          key={model.id} 
+                          name={model.name} 
+                          provider={model.model_id} 
+                          status="custom" 
+                          onDelete={() => handleDeleteModel(model.id)}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
@@ -225,12 +386,166 @@ export function Settings({ open, onClose }: SettingsProps) {
             )}
 
             {activeTab === 'mcps' && (
-              <div className="text-center py-20 text-zinc-500">
-                <Cloud size={48} className="mx-auto mb-4 opacity-20" />
-                <p>Register HTTP or OAuth MCPs to extend Agent capabilities.</p>
-                <button className="mt-4 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-white rounded-lg text-sm transition-colors">
-                  Add MCP
-                </button>
+              <div className="space-y-6">
+                <div className="p-4 bg-zinc-950 border border-zinc-800 rounded-xl flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-emerald-500/10 rounded-lg flex items-center justify-center text-emerald-500">
+                      <Cloud size={24} />
+                    </div>
+                    <div>
+                      <div className="text-sm font-medium">MCP Tools</div>
+                      <div className="text-xs text-zinc-500">{(mcps?.length || 0)} MCPs registered</div>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={() => setShowAddMcpForm(!showAddMcpForm)}
+                    className="text-xs font-semibold text-emerald-500 hover:text-emerald-400 flex items-center gap-1"
+                  >
+                    {showAddMcpForm ? 'Cancel' : <><Plus size={14} /> Add MCP</>}
+                  </button>
+                </div>
+
+                {showAddMcpForm && (
+                  <form onSubmit={handleAddMcp} className="p-4 bg-zinc-950 border border-emerald-500/30 rounded-xl space-y-4 animate-in fade-in slide-in-from-top-2 duration-200">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold text-zinc-500 uppercase px-1">MCP Name</label>
+                        <input 
+                          value={mcpName}
+                          onChange={(e) => setMcpName(e.target.value)}
+                          placeholder="e.g. My Tools"
+                          className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                          required
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold text-zinc-500 uppercase px-1">Type</label>
+                        <select 
+                          value={mcpType}
+                          onChange={(e) => setMcpType(e.target.value as 'http' | 'oauth')}
+                          className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500 appearance-none"
+                        >
+                          <option value="http">HTTP</option>
+                          <option value="oauth">OAuth 2.0</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-bold text-zinc-500 uppercase px-1">Endpoint URL</label>
+                      <input 
+                        value={mcpEndpoint}
+                        onChange={(e) => setMcpEndpoint(e.target.value)}
+                        placeholder="https://mcp.example.com"
+                        className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                        required
+                      />
+                    </div>
+
+                    {mcpType === 'http' ? (
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold text-zinc-500 uppercase px-1">API Key (Optional)</label>
+                        <input 
+                          type="password"
+                          value={mcpApiKey}
+                          onChange={(e) => setMcpApiKey(e.target.value)}
+                          placeholder="Bearer token or API key"
+                          className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                        />
+                      </div>
+                    ) : (
+                      <div className="space-y-4 pt-2 border-t border-zinc-800 mt-2">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-1.5">
+                            <label className="text-[10px] font-bold text-zinc-500 uppercase px-1">Client ID</label>
+                            <input 
+                              value={mcpClientId}
+                              onChange={(e) => setMcpClientId(e.target.value)}
+                              className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                              required
+                            />
+                          </div>
+                          <div className="space-y-1.5">
+                            <label className="text-[10px] font-bold text-zinc-500 uppercase px-1">Client Secret</label>
+                            <input 
+                              type="password"
+                              value={mcpClientSecret}
+                              onChange={(e) => setMcpClientSecret(e.target.value)}
+                              className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                              required
+                            />
+                          </div>
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-bold text-zinc-500 uppercase px-1">Authorization URL</label>
+                          <input 
+                            value={mcpAuthUrl}
+                            onChange={(e) => setMcpAuthUrl(e.target.value)}
+                            placeholder="https://example.com/oauth/authorize"
+                            className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                            required
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-bold text-zinc-500 uppercase px-1">Token URL</label>
+                          <input 
+                            value={mcpTokenUrl}
+                            onChange={(e) => setMcpTokenUrl(e.target.value)}
+                            placeholder="https://example.com/oauth/token"
+                            className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                            required
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    <button 
+                      type="submit"
+                      className="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
+                    >
+                      {mcpType === 'oauth' ? <><ExternalLink size={16} /> Authenticate & Save</> : <><Save size={16} /> Save MCP</>}
+                    </button>
+                  </form>
+                )}
+
+                <div className="space-y-3">
+                  {mcps?.map(mcp => (
+                    <div key={mcp.id} className="p-4 bg-zinc-900/50 border border-zinc-800 rounded-xl flex items-center justify-between group">
+                      <div className="flex items-center gap-3">
+                        <div className={cn(
+                          "w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold",
+                          mcp.type === 'oauth' ? "bg-purple-500/10 text-purple-500" : "bg-blue-500/10 text-blue-500"
+                        )}>
+                          {mcp.type === 'oauth' ? 'OA' : 'H'}
+                        </div>
+                        <div>
+                          <div className="text-sm font-medium">{mcp.name}</div>
+                          <div className="text-xs text-zinc-500 truncate max-w-[200px]">{mcp.endpoint}</div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className={cn(
+                          "text-[10px] px-2 py-0.5 rounded uppercase font-bold",
+                          mcp.type === 'oauth' && !mcp.config?.accessToken ? "bg-amber-500/10 text-amber-500" : "bg-emerald-500/10 text-emerald-500"
+                        )}>
+                          {mcp.type === 'oauth' && !mcp.config?.accessToken ? 'Pending Auth' : 'Active'}
+                        </span>
+                        <button 
+                          onClick={() => handleDeleteMcp(mcp.id)}
+                          className="p-1.5 text-zinc-500 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                  {(!mcps || mcps.length === 0) && !showAddMcpForm && (
+                    <div className="text-center py-12 text-zinc-500">
+                      <Cloud size={40} className="mx-auto mb-3 opacity-20" />
+                      <p className="text-sm">No MCPs registered yet.</p>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </div>
@@ -257,15 +572,23 @@ function TabButton({ active, onClick, icon, label }: { active: boolean, onClick:
   );
 }
 
-function ModelItem({ name, provider, status }: { name: string, provider: string, status: string }) {
+function ModelItem({ name, provider, status, onDelete }: { name: string, provider: string, status: string, onDelete?: () => void }) {
   return (
-    <div className="p-4 bg-zinc-900/50 border border-zinc-800 rounded-xl flex items-center justify-between">
+    <div className="p-4 bg-zinc-900/50 border border-zinc-800 rounded-xl flex items-center justify-between group">
       <div>
         <div className="text-sm font-medium">{name}</div>
         <div className="text-xs text-zinc-500">{provider}</div>
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-3">
         <span className="text-[10px] bg-zinc-800 text-zinc-400 px-2 py-0.5 rounded uppercase font-bold">{status}</span>
+        {onDelete && (
+          <button 
+            onClick={onDelete}
+            className="p-1.5 text-zinc-500 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+          >
+            <Trash2 size={14} />
+          </button>
+        )}
       </div>
     </div>
   );

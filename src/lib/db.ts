@@ -45,11 +45,21 @@ export interface Setting {
   value: any;
 }
 
+export interface CustomModel {
+  id: string;
+  name: string;
+  provider: string;
+  model_id: string;
+  base_url: string;
+  api_key: string;
+}
+
 export class WebAgentDatabase extends Dexie {
   chats!: EntityTable<Chat, 'id'>;
   messages!: EntityTable<Message, 'id'>;
   mcps!: EntityTable<MCP, 'id'>;
   settings!: EntityTable<Setting, 'key'>;
+  customModels!: EntityTable<CustomModel, 'id'>;
 
   constructor() {
     super('WebAgentDB');
@@ -59,6 +69,13 @@ export class WebAgentDatabase extends Dexie {
       mcps: 'id, name',
       settings: 'key',
     });
+    this.version(2).stores({
+      chats: 'id, updated_at',
+      messages: 'id, chat_id, timestamp',
+      mcps: 'id, name',
+      settings: 'key',
+      customModels: 'id, name, model_id',
+    });
   }
 }
 
@@ -67,7 +84,7 @@ export const db = new WebAgentDatabase();
 // Initial data
 db.on('populate', async () => {
   await db.settings.add({ key: 'theme', value: 'dark' });
-  await db.settings.add({ key: 'credit_balance', value: 10.0 });
+  await db.settings.add({ key: 'credit_balance', value: 1000 }); // $10.00 in credits (1 credit = $0.01)
   await db.settings.add({ key: 'notion_auto_sync', value: false });
   await db.settings.add({ key: 'default_model', value: 'puter' });
 });

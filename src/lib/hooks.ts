@@ -1,5 +1,5 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db, type Message, type Chat, type MCP } from './db';
+import { db, type Message, type Chat, type MCP, type CustomModel } from './db';
 import { chatService } from './chat-service';
 import { notionSyncService } from './notion-sync';
 import { mcpService } from './mcp-service';
@@ -14,8 +14,9 @@ export function useVoice() {
   const start = async () => {
     try {
       const apiKey = (await db.settings.get('openai_api_key'))?.value;
+      const baseUrl = (await db.settings.get('realtime_voice_url'))?.value;
       if (!apiKey) throw new Error('OpenAI API key not found');
-      await voiceService.start(apiKey);
+      await voiceService.start(apiKey, undefined, baseUrl);
       setActive(true);
     } catch (e) {
       setError(e instanceof Error ? e : new Error(String(e)));
@@ -39,7 +40,7 @@ export function useCredits() {
   );
 
   return {
-    balance: balance?.value || 0,
+    balance: (balance?.value || 0) / 100, // Convert credits to dollars for UI
     addCredits: creditService.addCredits.bind(creditService),
     hasFeature: (key: string) => unlockedFeatures.has(key),
     unlockFeature: creditService.unlockFeature.bind(creditService),
@@ -101,5 +102,17 @@ export function useMessages(chatId?: string) {
       if (!chatId) return Promise.reject('No chat selected');
       return chatService.sendMessage(chatId, content, onToken);
     },
+  };
+}
+
+export function useCustomModels() {
+  const models = useLiveQuery(() => db.customModels.toArray());
+  return {
+    models: models || [],
+    addModel: (model: Omit<CustomModel, 'id'>) => {
+      const id = crypto.randomUUID();
+      return db.customModels.add({ ...model, id });
+    },
+    removeModel: (id: string) => db.customModels.delete(id),
   };
 }

@@ -36,8 +36,8 @@ export class MCPService {
       body: new URLSearchParams({
         grant_type: 'authorization_code',
         code,
-        client_id: mcp.config.clientId,
-        client_secret: mcp.config.clientSecret,
+        client_id: mcp.config.clientId || '',
+        client_secret: mcp.config.clientSecret || '',
         ...(mcp.config.redirectUri ? { redirect_uri: mcp.config.redirectUri } : {})
       }).toString()
     });
@@ -70,9 +70,9 @@ export class MCPService {
         },
         body: new URLSearchParams({
           grant_type: 'refresh_token',
-          refresh_token: mcp.config.refreshToken,
-          client_id: mcp.config.clientId,
-          client_secret: mcp.config.clientSecret
+          refresh_token: mcp.config.refreshToken || '',
+          client_id: mcp.config.clientId || '',
+          client_secret: mcp.config.clientSecret || ''
         }).toString()
       });
 
