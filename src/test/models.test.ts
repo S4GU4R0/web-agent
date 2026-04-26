@@ -77,4 +77,18 @@ describe('OpenAIProvider', () => {
         stream: false 
     });
   });
+
+  it('should support custom base URL', async () => {
+    server.use(
+      http.post('https://custom-api.com/v1/chat/completions', () => {
+        return HttpResponse.json({
+          choices: [{ message: { role: 'assistant', content: 'Custom endpoint response' } }],
+        });
+      })
+    );
+
+    const provider = new OpenAIProvider('fake-key', 'https://custom-api.com/v1');
+    const result = await provider.generateCompletion([{ role: 'user', content: 'Hi' }]);
+    expect(result.content).toBe('Custom endpoint response');
+  });
 });

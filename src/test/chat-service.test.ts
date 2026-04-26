@@ -58,4 +58,40 @@ describe('ChatService', () => {
     expect(messages[1].content).toBe('I am an AI.');
     expect(onToken).toHaveBeenCalledTimes(2);
   });
+
+  it('should deduct credits based on token usage', async () => {
+    const chatId = await chatService.createChat('Billing Chat', 'gpt-4o');
+    await db.settings.put({ key: 'openai_api_key', value: 'fake-key' });
+    await db.settings.put({ key: 'credit_balance', value: 1000 });
+
+    server.use(
+      http.post('https://api.openai.com/v1/chat/completions', () => {
+        const encoder = new TextEncoder();
+        const stream = new ReadableStream({
+          start(controller) {
+            controller.enqueue(encoder.encode('data: ' + JSON.stringify({ 
+              choices: [{ delta: { content: 'Response' } }],
+              usage: null 
+            }) + '\n\n'));
+            controller.enqueue(encoder.encode('data: ' + JSON.stringify({ 
+              choices: [], 
+              usage: { prompt_tokens: 50, completion_tokens: 50, total_tokens: 100 } 
+            }) + '\n\n'));
+            controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+            controller.close();
+          },
+        });
+        return new HttpResponse(stream, {
+          headers: { 'Content-Type': 'text/event-stream' },
+        });
+      })
+    );
+
+    await chatService.sendMessage(chatId, 'Hello');
+    
+    const balance = (await db.settings.get('credit_balance'))?.value;
+    // 100 tokens * 0.001 rate = 0.1, ceil = 1 credit.
+    // 1000 - 1 = 999
+    expect(balance).toBe(999);
+  });
 });

@@ -54,12 +54,21 @@ export interface CustomModel {
   api_key: string;
 }
 
+export interface Transaction {
+  id: string;
+  type: 'top-up' | 'usage';
+  amount: number; // in "credits" (e.g., 1 credit = $0.01)
+  description: string;
+  timestamp: number;
+}
+
 export class WebAgentDatabase extends Dexie {
   chats!: EntityTable<Chat, 'id'>;
   messages!: EntityTable<Message, 'id'>;
   mcps!: EntityTable<MCP, 'id'>;
   settings!: EntityTable<Setting, 'key'>;
   customModels!: EntityTable<CustomModel, 'id'>;
+  transactions!: EntityTable<Transaction, 'id'>;
 
   constructor() {
     super('WebAgentDB');
@@ -75,6 +84,14 @@ export class WebAgentDatabase extends Dexie {
       mcps: 'id, name',
       settings: 'key',
       customModels: 'id, name, model_id',
+    });
+    this.version(3).stores({
+      chats: 'id, updated_at',
+      messages: 'id, chat_id, timestamp',
+      mcps: 'id, name',
+      settings: 'key',
+      customModels: 'id, name, model_id',
+      transactions: 'id, timestamp, type',
     });
   }
 }

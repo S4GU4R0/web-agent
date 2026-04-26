@@ -42,8 +42,16 @@ export function useCredits() {
   return {
     balance: (balance?.value || 0) / 100, // Convert credits to dollars for UI
     addCredits: creditService.addCredits.bind(creditService),
+    deductCredits: creditService.deductCredits.bind(creditService),
     hasFeature: (key: string) => unlockedFeatures.has(key),
     unlockFeature: creditService.unlockFeature.bind(creditService),
+  };
+}
+
+export function useTransactions() {
+  const transactions = useLiveQuery(() => db.transactions.orderBy('timestamp').reverse().toArray());
+  return {
+    transactions: transactions || [],
   };
 }
 
@@ -62,11 +70,15 @@ export function useNotionSync() {
   
   const lastSyncAt = useLiveQuery(() => db.settings.get('last_sync_at'));
 
-  const sync = async () => {
+  const sync = async (force: boolean = false) => {
     setSyncing(true);
     setError(null);
     try {
-      await notionSyncService.sync();
+      if (force) {
+        await notionSyncService.forceSync();
+      } else {
+        await notionSyncService.sync();
+      }
     } catch (e) {
       setError(e instanceof Error ? e : new Error(String(e)));
     } finally {

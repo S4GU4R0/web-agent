@@ -1,12 +1,5 @@
-import { db } from './db';
-
-export interface CreditTransaction {
-  id: string;
-  type: 'top-up' | 'usage';
-  amount: number; // in "credits" (e.g., 1 credit = $0.01)
-  description: string;
-  timestamp: number;
-}
+import { db, type Transaction } from './db';
+import { v4 as uuidv4 } from 'uuid';
 
 export const FEATURE_COSTS: Record<string, number> = {
   'realtime_voice': 1000, // 1000 credits = $10.00
@@ -25,6 +18,14 @@ export class CreditService {
     const currentBalance = await this.getBalance();
     const newBalance = currentBalance + amount;
     await db.settings.put({ key: 'credit_balance', value: newBalance });
+    
+    await db.transactions.add({
+      id: uuidv4(),
+      type: 'top-up',
+      amount,
+      description,
+      timestamp: Date.now(),
+    });
   }
 
   async deductCredits(amount: number, description: string) {
@@ -32,6 +33,14 @@ export class CreditService {
     const currentBalance = await this.getBalance();
     const newBalance = Math.max(0, currentBalance - amount);
     await db.settings.put({ key: 'credit_balance', value: newBalance });
+
+    await db.transactions.add({
+      id: uuidv4(),
+      type: 'usage',
+      amount,
+      description,
+      timestamp: Date.now(),
+    });
   }
 
   async hasFeature(featureKey: string): Promise<boolean> {

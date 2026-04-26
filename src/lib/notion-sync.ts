@@ -28,7 +28,7 @@ export class NotionSyncService {
     return false;
   }
 
-  async sync() {
+  async sync(force: boolean = false) {
     const initialized = await this.init();
     if (!initialized || !this.client || !this.config) {
       console.warn('Notion sync not configured');
@@ -36,9 +36,9 @@ export class NotionSyncService {
     }
 
     try {
-      console.log('Starting Notion sync...');
-      await this.syncChats();
-      await this.syncMessages();
+      console.log(`Starting Notion sync (force: ${force})...`);
+      await this.syncChats(force);
+      await this.syncMessages(force);
       
       await db.settings.put({ key: 'last_sync_at', value: Date.now() });
       console.log('Notion sync completed successfully');
@@ -48,7 +48,11 @@ export class NotionSyncService {
     }
   }
 
-  private async syncChats() {
+  async forceSync() {
+    return this.sync(true);
+  }
+
+  private async syncChats(force: boolean) {
     if (!this.client || !this.config) return;
 
     const localChats = await db.chats.toArray();
@@ -65,17 +69,17 @@ export class NotionSyncService {
       const notionPage = notionMap.get(chat.id);
       
       if (!notionPage) {
-        await this.client.pages.create({
-          parent: { database_id: this.config.chatsDatabaseId },
+        await this.rateLimitedCall(() => this.client!.pages.create({
+          parent: { database_id: this.config!.chatsDatabaseId },
           properties: this.mapChatToNotionProperties(chat),
-        });
+        }));
       } else {
         const notionUpdatedAt = propsToNumber(notionPage.properties.updated_at) || 0;
-        if (chat.updated_at > notionUpdatedAt) {
-          await this.client.pages.update({
+        if (force || chat.updated_at > notionUpdatedAt) {
+          await this.rateLimitedCall(() => this.client!.pages.update({
             page_id: notionPage.id,
             properties: this.mapChatToNotionProperties(chat),
-          });
+          }));
         } else if (notionUpdatedAt > chat.updated_at) {
           await db.chats.put(this.mapNotionToChat(notionPage));
         }
@@ -90,7 +94,7 @@ export class NotionSyncService {
     }
   }
 
-  private async syncMessages() {
+  private async syncMessages(force: boolean) {
     if (!this.client || !this.config) return;
 
     const localMessages = await db.messages.toArray();
@@ -106,12 +110,17 @@ export class NotionSyncService {
     for (const msg of localMessages) {
       const notionPage = notionMap.get(msg.id);
       if (!notionPage) {
-        await this.client.pages.create({
-          parent: { database_id: this.config.messagesDatabaseId },
+        await this.rateLimitedCall(() => this.client!.pages.create({
+          parent: { database_id: this.config!.messagesDatabaseId },
           properties: this.mapMessageToNotionProperties(msg),
-        });
+        }));
+      } else if (force) {
+        await this.rateLimitedCall(() => this.client!.pages.update({
+          page_id: notionPage.id,
+          properties: this.mapMessageToNotionProperties(msg),
+        }));
       }
-      // Messages are generally immutable in our app, so we don't handle updates for now
+      // Messages are generally immutable in our app, so we don't handle updates unless forced
     }
 
     // Pull missing messages from Notion
@@ -122,16 +131,22 @@ export class NotionSyncService {
     }
   }
 
+  private async rateLimitedCall<T>(fn: () => Promise<T>): Promise<T> {
+    // Basic delay to avoid hitting rate limits (3 requests per second)
+    await new Promise(resolve => setTimeout(resolve, 350));
+    return fn();
+  }
+
   private async fetchAllPages(databaseId: string) {
     if (!this.client) return [];
     let results: any[] = [];
     let cursor: string | undefined = undefined;
 
     while (true) {
-      const response: any = await this.client.databases.query({
+      const response: any = await this.rateLimitedCall(() => this.client!.databases.query({
         database_id: databaseId,
         start_cursor: cursor,
-      });
+      }));
       results = results.concat(response.results);
       if (!response.has_more) break;
       cursor = response.next_cursor;
@@ -153,7 +168,7 @@ export class NotionSyncService {
   private mapNotionToChat(page: any): Chat {
     const props = page.properties;
     return {
-      id: props.id.rich_text[0].plain_text,
+      id: props.id.rich_text[0]?.plain_text || page.id,
       title: props.title.title[0]?.plain_text || 'Untitled',
       created_at: props.created_at.number,
       updated_at: props.updated_at.number,
@@ -170,18 +185,20 @@ export class NotionSyncService {
       content: { rich_text: [{ text: { content: msg.content.substring(0, 2000) } }] }, // Notion rich text limit
       timestamp: { number: msg.timestamp },
       tokens_used: { number: msg.tokens_used || 0 },
+      is_error: { checkbox: !!msg.is_error },
     };
   }
 
   private mapNotionToMessage(page: any): Message {
     const props = page.properties;
     return {
-      id: props.id.rich_text[0].plain_text,
-      chat_id: props.chat_id.rich_text[0].plain_text,
+      id: props.id.rich_text[0]?.plain_text || page.id,
+      chat_id: props.chat_id.rich_text[0]?.plain_text || '',
       role: props.role.select.name as any,
       content: props.content.rich_text[0]?.plain_text || '',
       timestamp: props.timestamp.number,
-      tokens_used: props.tokens_used.number,
+      tokens_used: props.tokens_used.number || 0,
+      is_error: props.is_error.checkbox,
     };
   }
 }

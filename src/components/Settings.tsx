@@ -12,7 +12,11 @@ import {
   ExternalLink,
   Trash2,
   Plus,
-  Save
+  Save,
+  Database,
+  Download,
+  Upload,
+  AlertTriangle
 } from 'lucide-react';
 import { db } from '@/lib/db';
 import { cn } from '@/lib/utils';
@@ -23,7 +27,7 @@ interface SettingsProps {
   onClose: () => void;
 }
 
-type Tab = 'keys' | 'models' | 'mcps' | 'billing';
+type Tab = 'keys' | 'models' | 'mcps' | 'billing' | 'data';
 
 export function Settings({ open, onClose }: SettingsProps) {
   const [activeTab, setActiveTab] = useState<Tab>('keys');
@@ -113,6 +117,100 @@ export function Settings({ open, onClose }: SettingsProps) {
     await db.mcps.delete(id);
   };
 
+  const [dataStatus, setDataStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [errorMessage, setErrorMessage] = useState('');
+
+  const handleExportData = async () => {
+    setDataStatus('loading');
+    try {
+      const exportData = {
+        chats: await db.chats.toArray(),
+        messages: await db.messages.toArray(),
+        mcps: await db.mcps.toArray(),
+        customModels: await db.customModels.toArray(),
+        settings: await db.settings.toArray(),
+        version: 1,
+        exportedAt: new Date().toISOString()
+      };
+
+      const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `web-agent-data-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      setDataStatus('success');
+      setTimeout(() => setDataStatus('idle'), 3000);
+    } catch (e) {
+      console.error('Export failed:', e);
+      setErrorMessage('Failed to export data.');
+      setDataStatus('error');
+    }
+  };
+
+  const handleImportData = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setDataStatus('loading');
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+
+      // Simple validation
+      if (!data.chats || !data.messages) {
+        throw new Error('Invalid backup file format.');
+      }
+
+      await db.transaction('rw', [db.chats, db.messages, db.mcps, db.customModels, db.settings], async () => {
+        if (data.chats) await db.chats.bulkPut(data.chats);
+        if (data.messages) await db.messages.bulkPut(data.messages);
+        if (data.mcps) await db.mcps.bulkPut(data.mcps);
+        if (data.customModels) await db.customModels.bulkPut(data.customModels);
+        if (data.settings) await db.settings.bulkPut(data.settings);
+      });
+
+      setDataStatus('success');
+      setTimeout(() => {
+        setDataStatus('idle');
+        window.location.reload(); // Reload to refresh all hooks
+      }, 1500);
+    } catch (e) {
+      console.error('Import failed:', e);
+      setErrorMessage(e instanceof Error ? e.message : 'Failed to import data.');
+      setDataStatus('error');
+    }
+  };
+
+  const handleClearData = async () => {
+    if (!confirm('Are you sure you want to clear ALL data? This includes chat history, API keys, and custom models. This action cannot be undone.')) {
+      return;
+    }
+
+    setDataStatus('loading');
+    try {
+      await db.transaction('rw', [db.chats, db.messages, db.mcps, db.customModels, db.settings], async () => {
+        await db.chats.clear();
+        await db.messages.clear();
+        await db.mcps.clear();
+        await db.customModels.clear();
+        await db.settings.clear();
+      });
+      
+      setDataStatus('success');
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
+    } catch (e) {
+      console.error('Clear failed:', e);
+      setErrorMessage('Failed to clear data.');
+      setDataStatus('error');
+    }
+  };
+
   useEffect(() => {
     if (open) {
       db.settings.get('openai_api_key').then(s => setOpenaiKey(s?.value || ''));
@@ -160,6 +258,12 @@ export function Settings({ open, onClose }: SettingsProps) {
             icon={<CreditCard size={18} />} 
             label="Billing" 
           />
+          <TabButton 
+            active={activeTab === 'data'} 
+            onClick={() => setActiveTab('data')} 
+            icon={<Database size={18} />} 
+            label="Data Management" 
+          />
         </div>
 
         {/* Content */}
@@ -170,6 +274,7 @@ export function Settings({ open, onClose }: SettingsProps) {
               {activeTab === 'models' && 'Model Management'}
               {activeTab === 'mcps' && 'MCP Tools'}
               {activeTab === 'billing' && 'Credits & Billing'}
+              {activeTab === 'data' && 'Data Management'}
             </h2>
             <button onClick={onClose} className="p-1 hover:bg-zinc-800 rounded-lg text-zinc-400">
               <X size={20} />
@@ -545,6 +650,92 @@ export function Settings({ open, onClose }: SettingsProps) {
                       <p className="text-sm">No MCPs registered yet.</p>
                     </div>
                   )}
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'data' && (
+              <div className="space-y-6">
+                <div className="p-4 bg-zinc-950 border border-zinc-800 rounded-xl space-y-4">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="w-10 h-10 bg-blue-500/10 rounded-lg flex items-center justify-center text-blue-500">
+                      <Database size={24} />
+                    </div>
+                    <div>
+                      <div className="text-sm font-medium">Local Data Storage</div>
+                      <div className="text-xs text-zinc-500">Manage your local chat history and settings</div>
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <button 
+                      onClick={handleExportData}
+                      disabled={dataStatus === 'loading'}
+                      className="flex flex-col items-center justify-center p-6 bg-zinc-900 border border-zinc-800 rounded-xl hover:bg-zinc-800 transition-colors gap-3 group disabled:opacity-50"
+                    >
+                      <Download size={24} className="text-zinc-400 group-hover:text-white transition-colors" />
+                      <div className="text-sm font-medium">Export Data</div>
+                      <div className="text-[10px] text-zinc-500 text-center">Download a JSON backup of all your data</div>
+                    </button>
+
+                    <label className="flex flex-col items-center justify-center p-6 bg-zinc-900 border border-zinc-800 rounded-xl hover:bg-zinc-800 transition-colors gap-3 group cursor-pointer">
+                      <Upload size={24} className="text-zinc-400 group-hover:text-white transition-colors" />
+                      <div className="text-sm font-medium">Import Data</div>
+                      <div className="text-[10px] text-zinc-500 text-center">Restore from a previously exported JSON file</div>
+                      <input 
+                        type="file" 
+                        accept=".json" 
+                        className="hidden" 
+                        onChange={handleImportData}
+                        disabled={dataStatus === 'loading'}
+                      />
+                    </label>
+                  </div>
+
+                  {dataStatus === 'loading' && (
+                    <div className="flex items-center justify-center gap-2 text-sm text-zinc-400 py-2 animate-pulse">
+                      <Database size={16} />
+                      <span>Processing...</span>
+                    </div>
+                  )}
+
+                  {dataStatus === 'success' && (
+                    <div className="flex items-center justify-center gap-2 text-sm text-emerald-500 py-2 bg-emerald-500/5 rounded-lg border border-emerald-500/20">
+                      <span>Operation completed successfully!</span>
+                    </div>
+                  )}
+
+                  {dataStatus === 'error' && (
+                    <div className="flex items-center justify-center gap-2 text-sm text-red-500 py-2 bg-red-500/5 rounded-lg border border-red-500/20">
+                      <AlertTriangle size={16} />
+                      <span>{errorMessage}</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="p-4 bg-red-500/5 border border-red-500/20 rounded-xl space-y-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-red-500/10 rounded-lg flex items-center justify-center text-red-500">
+                      <AlertTriangle size={24} />
+                    </div>
+                    <div>
+                      <div className="text-sm font-medium text-red-400">Danger Zone</div>
+                      <div className="text-xs text-zinc-500">Irreversible actions on your data</div>
+                    </div>
+                  </div>
+                  
+                  <p className="text-xs text-zinc-500">
+                    Clearing all data will permanently delete your chat history, messages, registered MCPs, custom models, and settings. This cannot be undone.
+                  </p>
+
+                  <button 
+                    onClick={handleClearData}
+                    disabled={dataStatus === 'loading'}
+                    className="w-full py-2 bg-red-600/10 hover:bg-red-600 text-red-500 hover:text-white border border-red-500/20 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2 group"
+                  >
+                    <Trash2 size={16} />
+                    Clear All Local Data
+                  </button>
                 </div>
               </div>
             )}
