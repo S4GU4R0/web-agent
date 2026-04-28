@@ -53,7 +53,7 @@ export function ChatInterface({ chatId }: ChatInterfaceProps) {
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-6 custom-scrollbar">
         {messages.length === 0 ? (
-          <div className="h-full flex items-center justify-center text-zinc-500 dark:text-zinc-600">
+          <div className="h-full flex items-center justify-center text-zinc-500 dark:text-zinc-300">
             <p>This chat is empty. Send a message to begin.</p>
           </div>
         ) : (
@@ -84,7 +84,7 @@ export function ChatInterface({ chatId }: ChatInterfaceProps) {
               )}>
                 <div className="whitespace-pre-wrap">{msg.content}</div>
                 {msg.tokens_used && (
-                  <div className="mt-2 text-[10px] text-zinc-500 font-mono">
+                  <div className="mt-2 text-[10px] text-zinc-500 dark:text-zinc-300 font-mono">
                     {msg.tokens_used} tokens
                   </div>
                 )}
@@ -115,7 +115,7 @@ export function ChatInterface({ chatId }: ChatInterfaceProps) {
                 "p-2 rounded-xl transition-all",
                 voiceActive 
                   ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-500 animate-pulse" 
-                  : "text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-800"
+                  : "text-zinc-500 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-zinc-200 hover:bg-zinc-200 dark:hover:bg-zinc-800"
               )}
             >
               {voiceActive ? <Mic size={20} /> : <MicOff size={20} />}
@@ -129,7 +129,7 @@ export function ChatInterface({ chatId }: ChatInterfaceProps) {
             </button>
           </div>
         </form>
-        <p className="text-center text-[10px] text-zinc-500 dark:text-zinc-600 mt-2">
+        <p className="text-center text-[10px] text-zinc-500 dark:text-zinc-300 mt-2">
           Agent may produce inaccurate information. Powered by OpenAI & Puter.js
         </p>
       </div>

@@ -16,11 +16,12 @@ import {
   Database,
   Download,
   Upload,
-  AlertTriangle
+  AlertTriangle,
+  RefreshCw
 } from 'lucide-react';
 import { db } from '@/lib/db';
 import { cn } from '@/lib/utils';
-import { useCredits, useCustomModels, useMCPs } from '@/lib/hooks';
+import { useCredits, useCustomModels, useMCPs, useTransactions } from '@/lib/hooks';
 
 interface SettingsProps {
   open: boolean;
@@ -36,6 +37,7 @@ export function Settings({ open, onClose }: SettingsProps) {
   const [notionChatsDb, setNotionChatsDb] = useState('');
   const [notionMsgsDb, setNotionMsgsDb] = useState('');
   const { balance, hasFeature } = useCredits();
+  const { transactions } = useTransactions();
 
   const { models: customModels, addModel, removeModel } = useCustomModels();
   const [showAddModelForm, setShowAddModelForm] = useState(false);
@@ -64,7 +66,9 @@ export function Settings({ open, onClose }: SettingsProps) {
   };
 
   const handleDeleteModel = async (id: string) => {
-    await removeModel(id);
+    if (confirm('Are you sure you want to delete this custom model?')) {
+      await removeModel(id);
+    }
   };
 
   const { mcps, registerMCP } = useMCPs();
@@ -78,43 +82,51 @@ export function Settings({ open, onClose }: SettingsProps) {
   const [mcpAuthUrl, setMcpAuthUrl] = useState('');
   const [mcpTokenUrl, setMcpTokenUrl] = useState('');
 
+  const [isAddingMcp, setIsAddingMcp] = useState(false);
   const handleAddMcp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!mcpName || !mcpEndpoint) return;
 
-    const config: Record<string, string> = {};
-    if (mcpType === 'http' && mcpApiKey) config.apiKey = mcpApiKey;
-    if (mcpType === 'oauth') {
-      config.clientId = mcpClientId;
-      config.clientSecret = mcpClientSecret;
-      config.authUrl = mcpAuthUrl;
-      config.tokenUrl = mcpTokenUrl;
-      config.redirectUri = window.location.origin + '/oauth/callback';
-    }
+    setIsAddingMcp(true);
+    try {
+      const config: Record<string, string> = {};
+      if (mcpType === 'http' && mcpApiKey) config.apiKey = mcpApiKey;
+      if (mcpType === 'oauth') {
+        config.clientId = mcpClientId;
+        config.clientSecret = mcpClientSecret;
+        config.authUrl = mcpAuthUrl;
+        config.tokenUrl = mcpTokenUrl;
+        config.redirectUri = window.location.origin + '/oauth/callback';
+      }
 
-    const mcpId = await registerMCP(mcpName, mcpType, mcpEndpoint, config);
+      const mcpId = await registerMCP(mcpName, mcpType, mcpEndpoint, config);
 
-    if (mcpType === 'oauth' && mcpAuthUrl) {
-      const authUrl = new URL(mcpAuthUrl);
-      authUrl.searchParams.append('client_id', mcpClientId);
-      authUrl.searchParams.append('redirect_uri', config.redirectUri);
-      authUrl.searchParams.append('response_type', 'code');
-      authUrl.searchParams.append('state', mcpId);
-      window.location.href = authUrl.toString();
-    } else {
-      setMcpName('');
-      setMcpEndpoint('');
-      setMcpApiKey('');
-      setMcpClientId('');
-      setMcpClientSecret('');
-      setMcpAuthUrl('');
-      setMcpTokenUrl('');
-      setShowAddMcpForm(false);
+      if (mcpType === 'oauth' && mcpAuthUrl) {
+        const authUrl = new URL(mcpAuthUrl);
+        authUrl.searchParams.append('client_id', mcpClientId);
+        authUrl.searchParams.append('redirect_uri', config.redirectUri);
+        authUrl.searchParams.append('response_type', 'code');
+        authUrl.searchParams.append('state', mcpId);
+        window.location.href = authUrl.toString();
+      } else {
+        setMcpName('');
+        setMcpEndpoint('');
+        setMcpApiKey('');
+        setMcpClientId('');
+        setMcpClientSecret('');
+        setMcpAuthUrl('');
+        setMcpTokenUrl('');
+        setShowAddMcpForm(false);
+      }
+    } finally {
+      setIsAddingMcp(false);
     }
   };
 
   const handleDeleteMcp = async (id: string) => {
-    await db.mcps.delete(id);
+    if (confirm('Are you sure you want to delete this MCP?')) {
+      await db.mcps.delete(id);
+    }
   };
 
   const [dataStatus, setDataStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
@@ -233,7 +245,7 @@ export function Settings({ open, onClose }: SettingsProps) {
       <div className="relative w-full max-w-4xl h-[600px] bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl flex overflow-hidden">
         {/* Sidebar */}
         <div className="w-48 border-r border-zinc-800 bg-zinc-950 p-4 space-y-2">
-          <div className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-4 px-2">Settings</div>
+          <div className="text-xs font-bold text-zinc-300 uppercase tracking-widest mb-4 px-2">Settings</div>
           <TabButton 
             active={activeTab === 'keys'} 
             onClick={() => setActiveTab('keys')} 
@@ -276,7 +288,7 @@ export function Settings({ open, onClose }: SettingsProps) {
               {activeTab === 'billing' && 'Credits & Billing'}
               {activeTab === 'data' && 'Data Management'}
             </h2>
-            <button onClick={onClose} className="p-1 hover:bg-zinc-800 rounded-lg text-zinc-400">
+            <button onClick={onClose} className="p-1 hover:bg-zinc-800 rounded-lg text-zinc-300">
               <X size={20} />
             </button>
           </div>
@@ -287,7 +299,7 @@ export function Settings({ open, onClose }: SettingsProps) {
                 <div className="space-y-4">
                   <h3 className="text-sm font-medium text-zinc-200">AI Providers</h3>
                   <div className="space-y-2">
-                    <label className="text-xs text-zinc-500">OpenAI API Key</label>
+                    <label className="text-xs text-zinc-300">OpenAI API Key</label>
                     <input 
                       type="password"
                       value={openaiKey}
@@ -305,7 +317,7 @@ export function Settings({ open, onClose }: SettingsProps) {
                   <h3 className="text-sm font-medium text-zinc-200">Cloud Sync (Notion)</h3>
                   <div className="grid grid-cols-1 gap-4">
                     <div className="space-y-2">
-                      <label className="text-xs text-zinc-500">Integration Token</label>
+                      <label className="text-xs text-zinc-300">Integration Token</label>
                       <input 
                         type="password"
                         value={notionToken}
@@ -318,7 +330,7 @@ export function Settings({ open, onClose }: SettingsProps) {
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <label className="text-xs text-zinc-500">Chats Database ID</label>
+                        <label className="text-xs text-zinc-300">Chats Database ID</label>
                         <input 
                           value={notionChatsDb}
                           onChange={(e) => {
@@ -329,7 +341,7 @@ export function Settings({ open, onClose }: SettingsProps) {
                         />
                       </div>
                       <div className="space-y-2">
-                        <label className="text-xs text-zinc-500">Messages Database ID</label>
+                        <label className="text-xs text-zinc-300">Messages Database ID</label>
                         <input 
                           value={notionMsgsDb}
                           onChange={(e) => {
@@ -354,7 +366,7 @@ export function Settings({ open, onClose }: SettingsProps) {
                     </div>
                     <div>
                       <div className="text-sm font-medium">Model Configuration</div>
-                      <div className="text-xs text-zinc-500">{(customModels?.length || 0) + 3} models available</div>
+                      <div className="text-xs text-zinc-300">{(customModels?.length || 0) + 3} models available</div>
                     </div>
                   </div>
                   <button 
@@ -369,7 +381,7 @@ export function Settings({ open, onClose }: SettingsProps) {
                   <form onSubmit={handleAddModel} className="p-4 bg-zinc-950 border border-emerald-500/30 rounded-xl space-y-4 animate-in fade-in slide-in-from-top-2 duration-200">
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-1.5">
-                        <label className="text-[10px] font-bold text-zinc-500 uppercase px-1">Friendly Name</label>
+                        <label className="text-[10px] font-bold text-zinc-300 uppercase px-1">Friendly Name</label>
                         <input 
                           value={newModelName}
                           onChange={(e) => setNewModelName(e.target.value)}
@@ -379,7 +391,7 @@ export function Settings({ open, onClose }: SettingsProps) {
                         />
                       </div>
                       <div className="space-y-1.5">
-                        <label className="text-[10px] font-bold text-zinc-500 uppercase px-1">Model ID</label>
+                        <label className="text-[10px] font-bold text-zinc-300 uppercase px-1">Model ID</label>
                         <input 
                           value={newModelId}
                           onChange={(e) => setNewModelId(e.target.value)}
@@ -390,7 +402,7 @@ export function Settings({ open, onClose }: SettingsProps) {
                       </div>
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-zinc-500 uppercase px-1">Base URL</label>
+                      <label className="text-[10px] font-bold text-zinc-300 uppercase px-1">Base URL</label>
                       <input 
                         value={newModelBaseUrl}
                         onChange={(e) => setNewModelBaseUrl(e.target.value)}
@@ -400,7 +412,7 @@ export function Settings({ open, onClose }: SettingsProps) {
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-zinc-500 uppercase px-1">API Key (Optional)</label>
+                      <label className="text-[10px] font-bold text-zinc-300 uppercase px-1">API Key (Optional)</label>
                       <input 
                         type="password"
                         value={newModelApiKey}
@@ -420,7 +432,7 @@ export function Settings({ open, onClose }: SettingsProps) {
                 )}
 
                 <div className="space-y-4">
-                  <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-widest px-1">Built-in Models</h3>
+                  <h3 className="text-xs font-bold text-zinc-300 uppercase tracking-widest px-1">Built-in Models</h3>
                   <div className="space-y-3">
                     <ModelItem name="GPT-4o" provider="OpenAI" status="active" />
                     <ModelItem name="GPT-4o mini" provider="OpenAI" status="active" />
@@ -430,7 +442,7 @@ export function Settings({ open, onClose }: SettingsProps) {
 
                 {customModels && customModels.length > 0 && (
                   <div className="space-y-4">
-                    <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-widest px-1">Custom Models</h3>
+                    <h3 className="text-xs font-bold text-zinc-300 uppercase tracking-widest px-1">Custom Models</h3>
                     <div className="space-y-3">
                       {customModels.map(model => (
                         <ModelItem 
@@ -449,24 +461,27 @@ export function Settings({ open, onClose }: SettingsProps) {
 
             {activeTab === 'billing' && (
               <div className="space-y-8">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="p-6 bg-zinc-950 border border-zinc-800 rounded-2xl space-y-2">
-                    <div className="text-xs text-zinc-500 font-bold uppercase">Balance</div>
-                    <div className="text-3xl font-mono text-emerald-500">${balance.toFixed(2)}</div>
-                    <div className="text-[10px] text-zinc-600">at-cost credits</div>
+                    <div className="text-xs text-zinc-300 font-bold uppercase tracking-wider">Current Balance</div>
+                    <div className="text-4xl font-mono text-emerald-500 font-bold">${balance.toFixed(2)}</div>
+                    <div className="text-[10px] text-zinc-300 italic">Pay-as-you-go credits</div>
                   </div>
-                  <div className="p-6 bg-emerald-600 rounded-2xl flex flex-col justify-between group cursor-pointer hover:bg-emerald-500 transition-colors">
-                    <div className="text-xs text-emerald-100 font-bold uppercase">Actions</div>
+                  <div className="p-6 bg-emerald-600 rounded-2xl flex flex-col justify-between group cursor-pointer hover:bg-emerald-500 transition-all shadow-lg shadow-emerald-900/20">
+                    <div className="text-xs text-emerald-100 font-bold uppercase tracking-wider">Top Up</div>
                     <div className="text-xl font-bold text-white flex items-center justify-between">
-                      Top Up 
-                      <ExternalLink size={20} />
+                      Add AI Credits 
+                      <ExternalLink size={20} className="group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
                     </div>
                   </div>
                 </div>
 
                 <div className="space-y-4">
-                  <h3 className="text-sm font-medium text-zinc-200">Feature Unlocks</h3>
-                  <div className="space-y-3">
+                  <h3 className="text-sm font-semibold text-zinc-200 flex items-center gap-2">
+                    <CreditCard size={16} className="text-emerald-500" />
+                    Feature Unlocks
+                  </h3>
+                  <div className="grid grid-cols-1 gap-3">
                     <FeatureItem 
                       unlocked={hasFeature('realtime_voice')} 
                       icon={<Mic size={18} />} 
@@ -487,6 +502,39 @@ export function Settings({ open, onClose }: SettingsProps) {
                     />
                   </div>
                 </div>
+
+                <div className="space-y-4 pt-4 border-t border-zinc-800">
+                  <h3 className="text-sm font-semibold text-zinc-200 flex items-center gap-2">
+                    <RefreshCw size={16} className="text-emerald-500" />
+                    Transaction History
+                  </h3>
+                  <div className="bg-zinc-950 border border-zinc-800 rounded-xl overflow-hidden">
+                    {transactions && transactions.length > 0 ? (
+                      <div className="divide-y divide-zinc-800">
+                        {transactions.map(tx => (
+                          <div key={tx.id} className="p-3 flex items-center justify-between hover:bg-zinc-900/50 transition-colors">
+                            <div className="flex flex-col">
+                              <span className="text-sm font-medium text-zinc-200">{tx.description}</span>
+                              <span className="text-[10px] text-zinc-300">
+                                {new Date(tx.timestamp).toLocaleString()}
+                              </span>
+                            </div>
+                            <div className={cn(
+                              "text-sm font-mono font-bold",
+                              tx.type === 'top-up' ? "text-emerald-500" : "text-zinc-300"
+                            )}>
+                              {tx.type === 'top-up' ? '+' : '-'}${Math.abs(tx.amount / 100).toFixed(2)}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="p-8 text-center text-zinc-300 text-sm">
+                        No transactions yet.
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
             )}
 
@@ -499,7 +547,7 @@ export function Settings({ open, onClose }: SettingsProps) {
                     </div>
                     <div>
                       <div className="text-sm font-medium">MCP Tools</div>
-                      <div className="text-xs text-zinc-500">{(mcps?.length || 0)} MCPs registered</div>
+                      <div className="text-xs text-zinc-300">{(mcps?.length || 0)} MCPs registered</div>
                     </div>
                   </div>
                   <button 
@@ -514,7 +562,7 @@ export function Settings({ open, onClose }: SettingsProps) {
                   <form onSubmit={handleAddMcp} className="p-4 bg-zinc-950 border border-emerald-500/30 rounded-xl space-y-4 animate-in fade-in slide-in-from-top-2 duration-200">
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-1.5">
-                        <label className="text-[10px] font-bold text-zinc-500 uppercase px-1">MCP Name</label>
+                        <label className="text-[10px] font-bold text-zinc-300 uppercase px-1">MCP Name</label>
                         <input 
                           value={mcpName}
                           onChange={(e) => setMcpName(e.target.value)}
@@ -524,7 +572,7 @@ export function Settings({ open, onClose }: SettingsProps) {
                         />
                       </div>
                       <div className="space-y-1.5">
-                        <label className="text-[10px] font-bold text-zinc-500 uppercase px-1">Type</label>
+                        <label className="text-[10px] font-bold text-zinc-300 uppercase px-1">Type</label>
                         <select 
                           value={mcpType}
                           onChange={(e) => setMcpType(e.target.value as 'http' | 'oauth')}
@@ -537,7 +585,7 @@ export function Settings({ open, onClose }: SettingsProps) {
                     </div>
 
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-zinc-500 uppercase px-1">Endpoint URL</label>
+                      <label className="text-[10px] font-bold text-zinc-300 uppercase px-1">Endpoint URL</label>
                       <input 
                         value={mcpEndpoint}
                         onChange={(e) => setMcpEndpoint(e.target.value)}
@@ -549,7 +597,7 @@ export function Settings({ open, onClose }: SettingsProps) {
 
                     {mcpType === 'http' ? (
                       <div className="space-y-1.5">
-                        <label className="text-[10px] font-bold text-zinc-500 uppercase px-1">API Key (Optional)</label>
+                        <label className="text-[10px] font-bold text-zinc-300 uppercase px-1">API Key (Optional)</label>
                         <input 
                           type="password"
                           value={mcpApiKey}
@@ -562,7 +610,7 @@ export function Settings({ open, onClose }: SettingsProps) {
                       <div className="space-y-4 pt-2 border-t border-zinc-800 mt-2">
                         <div className="grid grid-cols-2 gap-4">
                           <div className="space-y-1.5">
-                            <label className="text-[10px] font-bold text-zinc-500 uppercase px-1">Client ID</label>
+                            <label className="text-[10px] font-bold text-zinc-300 uppercase px-1">Client ID</label>
                             <input 
                               value={mcpClientId}
                               onChange={(e) => setMcpClientId(e.target.value)}
@@ -571,7 +619,7 @@ export function Settings({ open, onClose }: SettingsProps) {
                             />
                           </div>
                           <div className="space-y-1.5">
-                            <label className="text-[10px] font-bold text-zinc-500 uppercase px-1">Client Secret</label>
+                            <label className="text-[10px] font-bold text-zinc-300 uppercase px-1">Client Secret</label>
                             <input 
                               type="password"
                               value={mcpClientSecret}
@@ -582,7 +630,7 @@ export function Settings({ open, onClose }: SettingsProps) {
                           </div>
                         </div>
                         <div className="space-y-1.5">
-                          <label className="text-[10px] font-bold text-zinc-500 uppercase px-1">Authorization URL</label>
+                          <label className="text-[10px] font-bold text-zinc-300 uppercase px-1">Authorization URL</label>
                           <input 
                             value={mcpAuthUrl}
                             onChange={(e) => setMcpAuthUrl(e.target.value)}
@@ -592,7 +640,7 @@ export function Settings({ open, onClose }: SettingsProps) {
                           />
                         </div>
                         <div className="space-y-1.5">
-                          <label className="text-[10px] font-bold text-zinc-500 uppercase px-1">Token URL</label>
+                          <label className="text-[10px] font-bold text-zinc-300 uppercase px-1">Token URL</label>
                           <input 
                             value={mcpTokenUrl}
                             onChange={(e) => setMcpTokenUrl(e.target.value)}
@@ -606,9 +654,14 @@ export function Settings({ open, onClose }: SettingsProps) {
 
                     <button 
                       type="submit"
-                      className="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
+                      disabled={isAddingMcp}
+                      className="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      {mcpType === 'oauth' ? <><ExternalLink size={16} /> Authenticate & Save</> : <><Save size={16} /> Save MCP</>}
+                      {isAddingMcp ? (
+                        <RefreshCw size={16} className="animate-spin" />
+                      ) : (
+                        mcpType === 'oauth' ? <><ExternalLink size={16} /> Authenticate & Save</> : <><Save size={16} /> Save MCP</>
+                      )}
                     </button>
                   </form>
                 )}
@@ -625,7 +678,7 @@ export function Settings({ open, onClose }: SettingsProps) {
                         </div>
                         <div>
                           <div className="text-sm font-medium">{mcp.name}</div>
-                          <div className="text-xs text-zinc-500 truncate max-w-[200px]">{mcp.endpoint}</div>
+                          <div className="text-xs text-zinc-300 truncate max-w-[200px]">{mcp.endpoint}</div>
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
@@ -637,15 +690,16 @@ export function Settings({ open, onClose }: SettingsProps) {
                         </span>
                         <button 
                           onClick={() => handleDeleteMcp(mcp.id)}
-                          className="p-1.5 text-zinc-500 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                          className="p-2 text-zinc-300 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors group-hover:bg-zinc-800"
+                          title="Delete MCP"
                         >
-                          <Trash2 size={14} />
+                          <Trash2 size={16} />
                         </button>
                       </div>
                     </div>
                   ))}
                   {(!mcps || mcps.length === 0) && !showAddMcpForm && (
-                    <div className="text-center py-12 text-zinc-500">
+                    <div className="text-center py-12 text-zinc-300">
                       <Cloud size={40} className="mx-auto mb-3 opacity-20" />
                       <p className="text-sm">No MCPs registered yet.</p>
                     </div>
@@ -663,7 +717,7 @@ export function Settings({ open, onClose }: SettingsProps) {
                     </div>
                     <div>
                       <div className="text-sm font-medium">Local Data Storage</div>
-                      <div className="text-xs text-zinc-500">Manage your local chat history and settings</div>
+                      <div className="text-xs text-zinc-300">Manage your local chat history and settings</div>
                     </div>
                   </div>
                   
@@ -673,15 +727,15 @@ export function Settings({ open, onClose }: SettingsProps) {
                       disabled={dataStatus === 'loading'}
                       className="flex flex-col items-center justify-center p-6 bg-zinc-900 border border-zinc-800 rounded-xl hover:bg-zinc-800 transition-colors gap-3 group disabled:opacity-50"
                     >
-                      <Download size={24} className="text-zinc-400 group-hover:text-white transition-colors" />
+                      <Download size={24} className="text-zinc-300 group-hover:text-white transition-colors" />
                       <div className="text-sm font-medium">Export Data</div>
-                      <div className="text-[10px] text-zinc-500 text-center">Download a JSON backup of all your data</div>
+                      <div className="text-[10px] text-zinc-300 text-center">Download a JSON backup of all your data</div>
                     </button>
 
                     <label className="flex flex-col items-center justify-center p-6 bg-zinc-900 border border-zinc-800 rounded-xl hover:bg-zinc-800 transition-colors gap-3 group cursor-pointer">
-                      <Upload size={24} className="text-zinc-400 group-hover:text-white transition-colors" />
+                      <Upload size={24} className="text-zinc-300 group-hover:text-white transition-colors" />
                       <div className="text-sm font-medium">Import Data</div>
-                      <div className="text-[10px] text-zinc-500 text-center">Restore from a previously exported JSON file</div>
+                      <div className="text-[10px] text-zinc-300 text-center">Restore from a previously exported JSON file</div>
                       <input 
                         type="file" 
                         accept=".json" 
@@ -693,7 +747,7 @@ export function Settings({ open, onClose }: SettingsProps) {
                   </div>
 
                   {dataStatus === 'loading' && (
-                    <div className="flex items-center justify-center gap-2 text-sm text-zinc-400 py-2 animate-pulse">
+                    <div className="flex items-center justify-center gap-2 text-sm text-zinc-300 py-2 animate-pulse">
                       <Database size={16} />
                       <span>Processing...</span>
                     </div>
@@ -720,11 +774,11 @@ export function Settings({ open, onClose }: SettingsProps) {
                     </div>
                     <div>
                       <div className="text-sm font-medium text-red-400">Danger Zone</div>
-                      <div className="text-xs text-zinc-500">Irreversible actions on your data</div>
+                      <div className="text-xs text-zinc-300">Irreversible actions on your data</div>
                     </div>
                   </div>
                   
-                  <p className="text-xs text-zinc-500">
+                  <p className="text-xs text-zinc-300">
                     Clearing all data will permanently delete your chat history, messages, registered MCPs, custom models, and settings. This cannot be undone.
                   </p>
 
@@ -754,7 +808,7 @@ function TabButton({ active, onClick, icon, label }: { active: boolean, onClick:
         "w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-all text-sm",
         active 
           ? "bg-emerald-600/10 text-emerald-500 font-medium" 
-          : "text-zinc-500 hover:bg-zinc-900 hover:text-zinc-300"
+          : "text-zinc-300 hover:bg-zinc-900 hover:text-zinc-300"
       )}
     >
       {icon}
@@ -768,16 +822,17 @@ function ModelItem({ name, provider, status, onDelete }: { name: string, provide
     <div className="p-4 bg-zinc-900/50 border border-zinc-800 rounded-xl flex items-center justify-between group">
       <div>
         <div className="text-sm font-medium">{name}</div>
-        <div className="text-xs text-zinc-500">{provider}</div>
+        <div className="text-xs text-zinc-300">{provider}</div>
       </div>
       <div className="flex items-center gap-3">
-        <span className="text-[10px] bg-zinc-800 text-zinc-400 px-2 py-0.5 rounded uppercase font-bold">{status}</span>
+        <span className="text-[10px] bg-zinc-800 text-zinc-300 px-2 py-0.5 rounded uppercase font-bold">{status}</span>
         {onDelete && (
           <button 
             onClick={onDelete}
-            className="p-1.5 text-zinc-500 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+            className="p-1.5 text-zinc-300 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors group-hover:bg-zinc-800"
+            title="Delete Model"
           >
-            <Trash2 size={14} />
+            <Trash2 size={16} />
           </button>
         )}
       </div>
@@ -789,7 +844,7 @@ function FeatureItem({ unlocked, icon, title, price }: { unlocked: boolean, icon
   return (
     <div className="p-4 bg-zinc-950 border border-zinc-800 rounded-xl flex items-center justify-between">
       <div className="flex items-center gap-3">
-        <div className={cn("p-2 rounded-lg", unlocked ? "text-emerald-500 bg-emerald-500/10" : "text-zinc-500 bg-zinc-900")}>
+        <div className={cn("p-2 rounded-lg", unlocked ? "text-emerald-500 bg-emerald-500/10" : "text-zinc-300 bg-zinc-900")}>
           {icon}
         </div>
         <span className="text-sm font-medium">{title}</span>
@@ -797,7 +852,7 @@ function FeatureItem({ unlocked, icon, title, price }: { unlocked: boolean, icon
       {unlocked ? (
         <span className="text-xs font-bold text-emerald-500">UNLOCKED</span>
       ) : (
-        <button className="text-xs font-bold text-zinc-400 hover:text-white bg-zinc-900 px-3 py-1.5 rounded-lg border border-zinc-800">
+        <button className="text-xs font-bold text-zinc-300 hover:text-white bg-zinc-900 px-3 py-1.5 rounded-lg border border-zinc-800">
           Buy {price}
         </button>
       )}

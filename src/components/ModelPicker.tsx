@@ -20,12 +20,14 @@ export function ModelPicker() {
   const { models: customModels } = useCustomModels();
   
   const allModels = [
-    ...MODELS,
+    ...MODELS.map(m => ({ ...m, type: 'builtin' as const })),
     ...(customModels?.map(m => ({
       id: m.id,
       name: m.name,
-      provider: m.model_id,
-      description: `Custom ${m.provider} model`
+      provider: m.provider,
+      description: `Model ID: ${m.model_id}`,
+      type: 'custom' as const,
+      base_url: m.base_url
     })) || [])
   ];
 
@@ -38,6 +40,9 @@ export function ModelPicker() {
     }
     setOpen(false);
   };
+
+  const builtinModels = allModels.filter(m => m.type === 'builtin');
+  const customModelsList = allModels.filter(m => m.type === 'custom');
 
   return (
     <div className="relative">
@@ -56,41 +61,78 @@ export function ModelPicker() {
             className="fixed inset-0 z-20" 
             onClick={() => setOpen(false)} 
           />
-          <div className="absolute top-full left-0 mt-2 w-64 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-2xl z-30 p-1">
-            <div className="px-3 py-2 text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest">
-              Select Model
-            </div>
-            {allModels.map((model) => (
-              <button
-                key={model.id}
-                onClick={() => handleModelSelect(model.id)}
-                className={cn(
-                  "w-full flex flex-col items-start p-3 rounded-lg transition-colors text-left group",
-                  selectedModelId === model.id ? "bg-emerald-50 dark:bg-emerald-500/10" : "hover:bg-zinc-50 dark:hover:bg-zinc-800"
-                )}
-              >
-                <div className="flex items-center justify-between w-full">
-                  <div className="flex items-center gap-2">
-                    {MODELS.some(m => m.id === model.id) ? (
-                      <Sparkles size={12} className={cn(selectedModelId === model.id ? "text-emerald-500" : "text-zinc-400")} />
-                    ) : (
-                      <Cpu size={12} className={cn(selectedModelId === model.id ? "text-emerald-500" : "text-zinc-400")} />
-                    )}
-                    <span className={cn(
-                      "text-sm font-medium",
-                      selectedModelId === model.id ? "text-emerald-600 dark:text-emerald-500" : "text-zinc-900 dark:text-zinc-200"
-                    )}>
-                      {model.name}
-                    </span>
+          <div className="absolute top-full left-0 mt-2 w-72 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-2xl z-30 p-1 overflow-hidden">
+            <div className="max-h-80 overflow-y-auto custom-scrollbar">
+              {builtinModels.length > 0 && (
+                <>
+                  <div className="px-3 py-2 text-[10px] font-bold text-zinc-500 dark:text-zinc-300 uppercase tracking-widest bg-zinc-50 dark:bg-zinc-800/50">
+                    Built-in Models
                   </div>
-                  {selectedModelId === model.id && <Check size={14} className="text-emerald-600 dark:text-emerald-500" />}
-                </div>
-                <span className="text-[10px] text-zinc-500 dark:text-zinc-500 mt-0.5 ml-5">{model.description}</span>
-              </button>
-            ))}
+                  {builtinModels.map((model) => (
+                    <ModelOption 
+                      key={model.id} 
+                      model={model} 
+                      selected={selectedModelId === model.id} 
+                      onClick={() => handleModelSelect(model.id)} 
+                    />
+                  ))}
+                </>
+              )}
+              
+              {customModelsList.length > 0 && (
+                <>
+                  <div className="px-3 py-2 text-[10px] font-bold text-zinc-500 dark:text-zinc-300 uppercase tracking-widest bg-zinc-50 dark:bg-zinc-800/50 border-t border-zinc-100 dark:border-zinc-800">
+                    Custom Models
+                  </div>
+                  {customModelsList.map((model) => (
+                    <ModelOption 
+                      key={model.id} 
+                      model={model} 
+                      selected={selectedModelId === model.id} 
+                      onClick={() => handleModelSelect(model.id)} 
+                    />
+                  ))}
+                </>
+              )}
+            </div>
           </div>
         </>
       )}
     </div>
+  );
+}
+
+function ModelOption({ model, selected, onClick }: { model: any, selected: boolean, onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        "w-full flex flex-col items-start p-3 rounded-lg transition-colors text-left group",
+        selected ? "bg-emerald-50 dark:bg-emerald-500/10" : "hover:bg-zinc-50 dark:hover:bg-zinc-800"
+      )}
+    >
+      <div className="flex items-center justify-between w-full">
+        <div className="flex items-center gap-2">
+          {model.type === 'builtin' ? (
+            <Sparkles size={12} className={cn(selected ? "text-emerald-500" : "text-zinc-400")} />
+          ) : (
+            <Cpu size={12} className={cn(selected ? "text-emerald-500" : "text-zinc-400")} />
+          )}
+          <span className={cn(
+            "text-sm font-medium",
+            selected ? "text-emerald-600 dark:text-emerald-500" : "text-zinc-900 dark:text-zinc-200"
+          )}>
+            {model.name}
+          </span>
+        </div>
+        {selected && <Check size={14} className="text-emerald-600 dark:text-emerald-500" />}
+      </div>
+      <div className="flex flex-col ml-5">
+        <span className="text-[10px] text-zinc-500 dark:text-zinc-400 mt-0.5">{model.description}</span>
+        {model.base_url && (
+          <span className="text-[9px] text-zinc-400 dark:text-zinc-600 truncate max-w-[200px]">{model.base_url}</span>
+        )}
+      </div>
+    </button>
   );
 }

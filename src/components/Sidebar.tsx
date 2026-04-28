@@ -77,7 +77,7 @@ export function Sidebar() {
 
       {/* Chat List */}
       <nav className="flex-1 overflow-y-auto p-2 space-y-1 custom-scrollbar">
-        {!collapsed && <div className="px-3 py-2 text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Recent Chats</div>}
+        {!collapsed && <div className="px-3 py-2 text-[10px] font-bold text-zinc-500 dark:text-zinc-300 uppercase tracking-widest">Recent Chats</div>}
         {chats.map((chat) => (
           <button
             key={chat.id}
@@ -89,7 +89,7 @@ export function Sidebar() {
               "w-full flex items-center gap-3 p-3 rounded-lg transition-colors group",
               currentChatId === chat.id 
                 ? "bg-zinc-200 dark:bg-zinc-800 text-zinc-900 dark:text-white font-medium shadow-sm" 
-                : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-900 hover:text-zinc-900 dark:hover:text-zinc-200"
+                : "text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-900 hover:text-zinc-900 dark:hover:text-zinc-200"
             )}
           >
             <MessageSquare size={18} className="shrink-0" />
@@ -104,7 +104,7 @@ export function Sidebar() {
       <div className="p-2 border-t border-zinc-200 dark:border-zinc-800 space-y-1">
         {/* Sync Status */}
         {!collapsed && (
-          <div className="px-3 py-2 flex items-center justify-between text-[10px] uppercase tracking-wider text-zinc-600 dark:text-zinc-400">
+          <div className="px-3 py-2 flex items-center justify-between text-[10px] uppercase tracking-wider text-zinc-500 dark:text-zinc-300">
             <div className="flex items-center gap-1.5">
               {lastSyncAt ? <Cloud size={12} className="text-emerald-600 dark:text-emerald-500" /> : <CloudOff size={12} />}
               <span>{syncing ? 'Syncing...' : 'Synced'}</span>
@@ -119,7 +119,7 @@ export function Sidebar() {
         {!collapsed && (
           <div className={cn(
             "px-3 py-1 flex items-center gap-2 text-[10px] font-bold rounded",
-            isOnline ? "text-emerald-600/50 dark:text-emerald-500/50" : "text-amber-600 dark:text-amber-500 bg-amber-500/10"
+            isOnline ? "text-emerald-600/70 dark:text-emerald-500/50" : "text-amber-600 dark:text-amber-500 bg-amber-500/10"
           )}>
             {isOnline ? <Wifi size={12} /> : <WifiOff size={12} />}
             <span>{isOnline ? "ONLINE" : "OFFLINE MODE"}</span>
@@ -128,15 +128,15 @@ export function Sidebar() {
 
         {/* Credits */}
         {!collapsed && (
-          <div className="px-3 py-2 text-xs text-zinc-600 dark:text-zinc-400 flex items-center justify-between">
+          <div className="px-3 py-2 text-xs text-zinc-700 dark:text-zinc-300 flex items-center justify-between">
             <span>AI Credits</span>
-            <span className="font-mono text-emerald-600 dark:text-emerald-500">${balance.toFixed(2)}</span>
+            <span className="font-mono text-emerald-600 dark:text-emerald-500 font-bold">${balance.toFixed(2)}</span>
           </div>
         )}
 
         <button 
           onClick={() => setSettingsOpen(true)}
-          className="w-full flex items-center gap-3 p-3 rounded-lg text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-900 hover:text-zinc-900 dark:hover:text-zinc-200 transition-colors"
+          className="w-full flex items-center gap-3 p-3 rounded-lg text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-900 hover:text-zinc-900 dark:hover:text-zinc-200 transition-colors"
         >
           <SettingsIcon size={18} className="shrink-0" />
           {!collapsed && <span className="text-sm">Settings</span>}
@@ -158,7 +158,7 @@ export function Sidebar() {
 
 function SidebarNavItem({ icon, label, collapsed }: { icon: React.ReactNode, label: string, collapsed: boolean }) {
   return (
-    <button className="w-full flex items-center gap-3 p-3 rounded-lg text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-900 hover:text-zinc-900 dark:hover:text-zinc-200 transition-colors group">
+    <button className="w-full flex items-center gap-3 p-3 rounded-lg text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-900 hover:text-zinc-900 dark:hover:text-zinc-200 transition-colors group">
       <div className="shrink-0">{icon}</div>
       {!collapsed && <span className="text-sm font-medium">{label}</span>}
     </button>
